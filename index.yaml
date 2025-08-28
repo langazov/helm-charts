@@ -1,0 +1,14 @@
+apiVersion: v1
+entries:
+  webapp:
+  - apiVersion: v2
+    appVersion: 1.16.0
+    created: "2025-08-28T23:19:59.226826501Z"
+    description: Example web application Helm chart for demonstration
+    digest: 28f1c077f9f9835769e3f62e58ebc09d8c8d0a631596fe7aaf9c68971acd3b41
+    name: webapp
+    type: application
+    urls:
+    - https://github.com/langazov/helm-charts/releases/download/webapp-0.1.0/webapp-0.1.0.tgz
+    version: 0.1.0
+generated: "2025-08-28T23:19:59.226837422Z"
