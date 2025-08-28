@@ -1,6 +1,4 @@
+target-branch: main
 chart-dirs:
   - charts
-chart-repos: []
-validate-maintainers: false
-check-version-increment: true
-target-branch: main
+helm-extra-args: --timeout 600s

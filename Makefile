@@ -1,44 +1,37 @@
-SHELL := /bin/bash
+.PHONY: help lint package clean install
 
-HELM ?= helm
-CT ?= ct
-CHARTS := $(wildcard charts/*)
-DIST ?= dist
-
-.PHONY: help lint package index clean ct-lint
-
+# Default target
 help:
-	@echo "Targets:"
-	@echo "  lint      - Helm lint for all charts and ct lint (if available)"
-	@echo "  package   - Package all charts into $(DIST)/"
-	@echo "  index     - Generate index.yaml from $(DIST) packages"
-	@echo "  clean     - Remove build artifacts"
+	@echo "Available targets:"
+	@echo "  help     - Show this help message"
+	@echo "  lint     - Lint all charts"
+	@echo "  package  - Package all charts"
+	@echo "  clean    - Clean packaged charts"
+	@echo "  install  - Install chart-testing (ct) tool"
 
+# Lint all charts
 lint:
-	@for c in $(CHARTS); do \
-		echo "==> helm lint $$c"; \
-		$(HELM) lint $$c || exit $$?; \
-	 done
-	@command -v $(CT) >/dev/null 2>&1 && echo "==> ct lint" && $(CT) lint --config .ct.yaml || true
+	@echo "Linting charts..."
+	helm lint charts/*/
 
-package: clean
-	@mkdir -p $(DIST)
-	@for c in $(CHARTS); do \
-		echo "==> packaging $$c"; \
-		$(HELM) package $$c -d $(DIST) || exit $$?; \
-	 done
+# Package all charts
+package:
+	@echo "Packaging charts..."
+	@mkdir -p docs
+	@for chart in charts/*/; do \
+		if [ -d "$$chart" ]; then \
+			helm package "$$chart" --destination docs/; \
+		fi \
+	done
+	@helm repo index docs --url https://$(GITHUB_USER).github.io/$(GITHUB_REPO)
 
-# Set REPO_URL to where this repo will be hosted (e.g., https://<org>.github.io/<repo>)
-REPO_URL ?=
-
-index: package
-	@if [ -z "$(REPO_URL)" ]; then \
-		echo "[info] REPO_URL not set; generating index.yaml with relative URLs"; \
-		$(HELM) repo index $(DIST); \
-	else \
-		echo "==> generating index.yaml with base URL $(REPO_URL)"; \
-		$(HELM) repo index $(DIST) --url $(REPO_URL); \
-	fi
-
+# Clean packaged charts
 clean:
-	rm -rf $(DIST)
+	@echo "Cleaning packaged charts..."
+	@rm -rf docs/*.tgz docs/index.yaml
+
+# Install chart-testing tool
+install:
+	@echo "Installing chart-testing..."
+	@curl -sSL https://github.com/helm/chart-testing/releases/download/v3.10.1/chart-testing_3.10.1_linux_amd64.tar.gz | tar xz
+	@sudo mv ct /usr/local/bin/ct
