@@ -1,0 +1,31 @@
+replicaCount: 1
+
+image:
+  repository: busybox
+  tag: "1.36"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  enabled: false
+  type: ClusterIP
+  port: 8080
+
+resources: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+podAnnotations: {}
+podLabels: {}
+
+containerPort: 8080
+
+command: ["/bin/sh","-c"]
+args: ["while true; do echo 'working'; sleep 10; done"]
+
+env: []
