@@ -22,6 +22,9 @@ This repository hosts multiple Helm charts under a single monorepo. Use it to de
 
 - Lint all charts: `make lint`
 - Package all charts to `dist/`: `make package`
+- Generate `index.yaml` from packaged charts:
+  - With absolute URLs (recommended for GitHub Pages): `make index REPO_URL=https://<org>.github.io/<repo>`
+  - Or with relative URLs: `make index`
 - Clean build artifacts: `make clean`
 
 ## Adding a New Chart
@@ -33,6 +36,6 @@ This repository hosts multiple Helm charts under a single monorepo. Use it to de
 
 ## Releasing (GitHub Pages + chart-releaser)
 
-This repo includes a GitHub Actions workflow using `helm/chart-releaser-action` to publish charts to GitHub Pages. Create a `gh-pages` branch and enable Pages from that branch. Tag or create a GitHub Release and the workflow will package and update the index.
+This repo includes a GitHub Actions workflow using `helm/chart-releaser-action` to publish charts to GitHub Pages. Create a `gh-pages` branch and enable Pages from that branch. Tag or create a GitHub Release and the workflow will package charts and update the `index.yaml` on `gh-pages`.
 
 Adjust or remove the workflows if using a different CI/CD.
