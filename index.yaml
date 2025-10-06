@@ -3,6 +3,26 @@ entries:
   redis:
   - apiVersion: v2
     appVersion: 8.2.2
+    created: "2025-10-06T15:49:03.673825565Z"
+    description: A Helm chart for Redis 8.2.2-alpine3.22
+    digest: a11c2415100cd90391168778920191099673b6caeab235db32be408a90a9915c
+    home: https://github.com/langazov/helm-charts
+    keywords:
+    - redis
+    - database
+    - cache
+    maintainers:
+    - email: langazov@gmail.com
+      name: Internet Market Solutions
+    name: redis
+    sources:
+    - https://github.com/langazov/helm-charts
+    type: application
+    urls:
+    - https://github.com/langazov/helm-charts/releases/download/redis-0.1.1/redis-0.1.1.tgz
+    version: 0.1.1
+  - apiVersion: v2
+    appVersion: 8.2.2
     created: "2025-10-06T13:56:10.431302279Z"
     description: A Helm chart for Redis 8.2.2-alpine3.22
     digest: 5dd6dfa110d767e2e8a1ab9ccc936cf3ac48c17c1df19ad5f45869d3a689047b
@@ -32,4 +52,4 @@ entries:
     urls:
     - https://github.com/langazov/helm-charts/releases/download/webapp-0.1.0/webapp-0.1.0.tgz
     version: 0.1.0
-generated: "2025-10-06T13:56:10.431312288Z"
+generated: "2025-10-06T15:49:03.673837197Z"
