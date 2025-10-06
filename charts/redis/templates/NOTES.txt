@@ -11,20 +11,41 @@ Redis master-replica cluster has been deployed!
 
 3. To connect to Redis master for write operations:
    kubectl run --namespace {{ .Release.Namespace }} redis-client --rm --tty -i --restart='Never' \
+{{- if .Values.redis.auth.enabled }}
+     --env REDIS_PASSWORD=$REDIS_PASSWORD \
+     --image {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }} -- redis-cli -h $REDIS_MASTER_SERVICE -p 6379 -a $REDIS_PASSWORD
+{{- else }}
      --image {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }} -- redis-cli -h $REDIS_MASTER_SERVICE -p 6379
+{{- end }}
 
 4. To connect to Redis replica for read operations:
    kubectl run --namespace {{ .Release.Namespace }} redis-client --rm --tty -i --restart='Never' \
+{{- if .Values.redis.auth.enabled }}
+     --env REDIS_PASSWORD=$REDIS_PASSWORD \
+     --image {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }} -- redis-cli -h $REDIS_REPLICA_SERVICE -p 6379 -a $REDIS_PASSWORD
+{{- else }}
      --image {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }} -- redis-cli -h $REDIS_REPLICA_SERVICE -p 6379
+{{- end }}
 
 5. To port-forward to the master:
    kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "redis.fullname" . }}-master 6379:6379
 
 6. To check replication status:
+{{- if .Values.redis.auth.enabled }}
+   kubectl exec --namespace {{ .Release.Namespace }} -it deployment/{{ include "redis.fullname" . }}-master -- sh -c 'redis-cli -a $REDIS_PASSWORD info replication'
+{{- else }}
    kubectl exec --namespace {{ .Release.Namespace }} -it deployment/{{ include "redis.fullname" . }}-master -- redis-cli info replication
+{{- end }}
 
 {{- if .Values.redis.auth.enabled }}
-   NOTE: Redis authentication is enabled. Use AUTH command with password: {{ .Values.redis.auth.password }}
+   NOTE: Redis authentication is enabled.
+
+   To retrieve the auto-generated password, run:
+   export REDIS_PASSWORD=$(kubectl get secret --namespace {{ .Release.Namespace }} {{ include "redis.fullname" . }}-auth -o jsonpath="{.data.redis-password}" | base64 -d)
+   echo $REDIS_PASSWORD
+
+   Use the password with the AUTH command or the -a flag:
+   redis-cli -a $REDIS_PASSWORD
 {{- end }}
 
 {{- if .Values.persistence.master.enabled }}
@@ -60,14 +81,30 @@ Redis standalone instance has been deployed!
 
 2. To connect to your Redis server:
    kubectl run --namespace {{ .Release.Namespace }} redis-client --rm --tty -i --restart='Never' \
+{{- if .Values.redis.auth.enabled }}
+     --env REDIS_PASSWORD=$REDIS_PASSWORD \
+     --image {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }} -- redis-cli -h {{ include "redis.fullname" . }} -p {{ .Values.service.port }} -a $REDIS_PASSWORD
+{{- else }}
      --image {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }} -- redis-cli -h {{ include "redis.fullname" . }} -p {{ .Values.service.port }}
+{{- end }}
 
 {{- if .Values.redis.auth.enabled }}
-   NOTE: Redis authentication is enabled. Use AUTH command with password: {{ .Values.redis.auth.password }}
+   NOTE: Redis authentication is enabled.
+
+   To retrieve the auto-generated password, run:
+   export REDIS_PASSWORD=$(kubectl get secret --namespace {{ .Release.Namespace }} {{ include "redis.fullname" . }}-auth -o jsonpath="{.data.redis-password}" | base64 -d)
+   echo $REDIS_PASSWORD
+
+   Use the password with the AUTH command or the -a flag:
+   redis-cli -a $REDIS_PASSWORD
 {{- end }}
 
 3. To check Redis status:
+{{- if .Values.redis.auth.enabled }}
+   kubectl exec --namespace {{ .Release.Namespace }} -it deployment/{{ include "redis.fullname" . }} -- sh -c 'redis-cli -a $REDIS_PASSWORD info'
+{{- else }}
    kubectl exec --namespace {{ .Release.Namespace }} -it deployment/{{ include "redis.fullname" . }} -- redis-cli info
+{{- end }}
 
 {{- if .Values.persistence.enabled }}
 4. Persistence is enabled. Data will be stored in the {{ .Values.persistence.size }} PVC.

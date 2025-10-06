@@ -51,8 +51,14 @@ spec:
           readinessProbe:
             exec:
               command:
-                - redis-cli
-                - ping
+                - sh
+                - -c
+                - |
+                  {{- if .Values.redis.auth.enabled }}
+                  redis-cli -a $REDIS_PASSWORD ping
+                  {{- else }}
+                  redis-cli ping
+                  {{- end }}
             initialDelaySeconds: 5
             periodSeconds: 5
           resources:
@@ -67,7 +73,10 @@ spec:
           {{- if .Values.redis.auth.enabled }}
           env:
             - name: REDIS_PASSWORD
-              value: {{ .Values.redis.auth.password | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "redis.fullname" . }}-auth
+                  key: redis-password
           {{- end }}
       volumes:
         - name: redis-config
@@ -149,8 +158,14 @@ spec:
           readinessProbe:
             exec:
               command:
-                - redis-cli
-                - ping
+                - sh
+                - -c
+                - |
+                  {{- if .Values.redis.auth.enabled }}
+                  redis-cli -a $REDIS_PASSWORD ping
+                  {{- else }}
+                  redis-cli ping
+                  {{- end }}
             initialDelaySeconds: 5
             periodSeconds: 5
           resources:
@@ -165,7 +180,10 @@ spec:
           {{- if .Values.redis.auth.enabled }}
           env:
             - name: REDIS_PASSWORD
-              value: {{ .Values.redis.auth.password | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "redis.fullname" . }}-auth
+                  key: redis-password
           {{- end }}
       volumes:
         - name: redis-config
@@ -243,8 +261,14 @@ spec:
           readinessProbe:
             exec:
               command:
-                - redis-cli
-                - ping
+                - sh
+                - -c
+                - |
+                  {{- if .Values.redis.auth.enabled }}
+                  redis-cli -a $REDIS_PASSWORD ping
+                  {{- else }}
+                  redis-cli ping
+                  {{- end }}
             initialDelaySeconds: 5
             periodSeconds: 5
           resources:
@@ -259,7 +283,10 @@ spec:
           {{- if .Values.redis.auth.enabled }}
           env:
             - name: REDIS_PASSWORD
-              value: {{ .Values.redis.auth.password | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "redis.fullname" . }}-auth
+                  key: redis-password
           {{- end }}
       volumes:
         - name: redis-config

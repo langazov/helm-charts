@@ -125,7 +125,9 @@ redis:
       maxmemory-policy allkeys-lru
   # Auth configuration
   auth:
-    enabled: false
+    enabled: true
+    # Leave password empty to auto-generate a random password
+    # Or provide a specific password here
     password: ""
 
 metrics:
