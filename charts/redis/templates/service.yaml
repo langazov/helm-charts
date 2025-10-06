@@ -1,0 +1,56 @@
+{{- if eq .Values.architecture "master-replica" }}
+# Redis Master Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "redis.fullname" . }}-master
+  labels:
+    {{- include "redis.labels" . | nindent 4 }}
+    app.kubernetes.io/component: master
+spec:
+  type: {{ .Values.service.master.type }}
+  ports:
+    - port: {{ .Values.service.master.port }}
+      targetPort: redis
+      protocol: TCP
+      name: redis
+  selector:
+    {{- include "redis.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: master
+---
+# Redis Replica Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "redis.fullname" . }}-replica
+  labels:
+    {{- include "redis.labels" . | nindent 4 }}
+    app.kubernetes.io/component: replica
+spec:
+  type: {{ .Values.service.replica.type }}
+  ports:
+    - port: {{ .Values.service.replica.port }}
+      targetPort: redis
+      protocol: TCP
+      name: redis
+  selector:
+    {{- include "redis.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: replica
+{{- else }}
+# Standalone Redis Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "redis.fullname" . }}
+  labels:
+    {{- include "redis.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: redis
+      protocol: TCP
+      name: redis
+  selector:
+    {{- include "redis.selectorLabels" . | nindent 4 }}
+{{- end }}

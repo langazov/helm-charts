@@ -1,0 +1,84 @@
+{{- if eq .Values.architecture "master-replica" }}
+{{- if .Values.persistence.master.enabled }}
+# Redis Master PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "redis.fullname" . }}-master-data
+  labels:
+    {{- include "redis.labels" . | nindent 4 }}
+    app.kubernetes.io/component: master
+  {{- with .Values.persistence.master.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    - {{ .Values.persistence.master.accessMode | quote }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.master.size | quote }}
+  {{- if .Values.persistence.master.storageClass }}
+  {{- if (eq "-" .Values.persistence.master.storageClass) }}
+  storageClassName: ""
+  {{- else }}
+  storageClassName: {{ .Values.persistence.master.storageClass | quote }}
+  {{- end }}
+  {{- end }}
+{{- end }}
+---
+{{- if .Values.persistence.replica.enabled }}
+# Redis Replica PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "redis.fullname" . }}-replica-data
+  labels:
+    {{- include "redis.labels" . | nindent 4 }}
+    app.kubernetes.io/component: replica
+  {{- with .Values.persistence.replica.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    - {{ .Values.persistence.replica.accessMode | quote }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.replica.size | quote }}
+  {{- if .Values.persistence.replica.storageClass }}
+  {{- if (eq "-" .Values.persistence.replica.storageClass) }}
+  storageClassName: ""
+  {{- else }}
+  storageClassName: {{ .Values.persistence.replica.storageClass | quote }}
+  {{- end }}
+  {{- end }}
+{{- end }}
+{{- else }}
+{{- if .Values.persistence.enabled }}
+# Standalone Redis PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "redis.fullname" . }}-data
+  labels:
+    {{- include "redis.labels" . | nindent 4 }}
+  {{- with .Values.persistence.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    - {{ .Values.persistence.accessMode | quote }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.size | quote }}
+  {{- if .Values.persistence.storageClass }}
+  {{- if (eq "-" .Values.persistence.storageClass) }}
+  storageClassName: ""
+  {{- else }}
+  storageClassName: {{ .Values.persistence.storageClass | quote }}
+  {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}

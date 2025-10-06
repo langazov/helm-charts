@@ -1,0 +1,81 @@
+{{- if eq .Values.architecture "master-replica" }}
+Redis master-replica cluster has been deployed!
+
+1. Get the Redis master service:
+   export REDIS_MASTER_SERVICE={{ include "redis.fullname" . }}-master
+   echo "Redis master: redis://$REDIS_MASTER_SERVICE:6379"
+
+2. Get the Redis replica service:
+   export REDIS_REPLICA_SERVICE={{ include "redis.fullname" . }}-replica
+   echo "Redis replica: redis://$REDIS_REPLICA_SERVICE:6379"
+
+3. To connect to Redis master for write operations:
+   kubectl run --namespace {{ .Release.Namespace }} redis-client --rm --tty -i --restart='Never' \
+     --image {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }} -- redis-cli -h $REDIS_MASTER_SERVICE -p 6379
+
+4. To connect to Redis replica for read operations:
+   kubectl run --namespace {{ .Release.Namespace }} redis-client --rm --tty -i --restart='Never' \
+     --image {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }} -- redis-cli -h $REDIS_REPLICA_SERVICE -p 6379
+
+5. To port-forward to the master:
+   kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "redis.fullname" . }}-master 6379:6379
+
+6. To check replication status:
+   kubectl exec --namespace {{ .Release.Namespace }} -it deployment/{{ include "redis.fullname" . }}-master -- redis-cli info replication
+
+{{- if .Values.redis.auth.enabled }}
+   NOTE: Redis authentication is enabled. Use AUTH command with password: {{ .Values.redis.auth.password }}
+{{- end }}
+
+{{- if .Values.persistence.master.enabled }}
+7. Master persistence is enabled. Data will be stored in the {{ .Values.persistence.master.size }} PVC.
+{{- end }}
+{{- if .Values.persistence.replica.enabled }}
+8. Replica persistence is enabled. Data will be stored in the {{ .Values.persistence.replica.size }} PVC.
+{{- end }}
+
+{{- if .Values.metrics.enabled }}
+9. Metrics are enabled and available at port {{ .Values.metrics.port }}
+{{- end }}
+
+{{- else }}
+Redis standalone instance has been deployed!
+
+1. Get the application URL by running these commands:
+{{- if contains "NodePort" .Values.service.type }}
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "redis.fullname" . }})
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo redis://$NODE_IP:$NODE_PORT
+{{- else if contains "LoadBalancer" .Values.service.type }}
+     NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+           You can watch the status of by running 'kubectl get --namespace {{ .Release.Namespace }} svc -w {{ include "redis.fullname" . }}'
+  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "redis.fullname" . }} --template "{{"{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}"}}")
+  echo redis://$SERVICE_IP:{{ .Values.service.port }}
+{{- else if contains "ClusterIP" .Values.service.type }}
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "redis.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+  export CONTAINER_PORT=$(kubectl get pod --namespace {{ .Release.Namespace }} $POD_NAME -o jsonpath="{.spec.containers[0].ports[0].containerPort}")
+  echo "Visit redis://127.0.0.1:6379 to use your application"
+  kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 6379:$CONTAINER_PORT
+{{- end }}
+
+2. To connect to your Redis server:
+   kubectl run --namespace {{ .Release.Namespace }} redis-client --rm --tty -i --restart='Never' \
+     --image {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }} -- redis-cli -h {{ include "redis.fullname" . }} -p {{ .Values.service.port }}
+
+{{- if .Values.redis.auth.enabled }}
+   NOTE: Redis authentication is enabled. Use AUTH command with password: {{ .Values.redis.auth.password }}
+{{- end }}
+
+3. To check Redis status:
+   kubectl exec --namespace {{ .Release.Namespace }} -it deployment/{{ include "redis.fullname" . }} -- redis-cli info
+
+{{- if .Values.persistence.enabled }}
+4. Persistence is enabled. Data will be stored in the {{ .Values.persistence.size }} PVC.
+{{- else }}
+4. WARNING: Persistence is disabled. Data will be lost when the pod restarts.
+{{- end }}
+
+{{- if .Values.metrics.enabled }}
+5. Metrics are enabled and available at port {{ .Values.metrics.port }}
+{{- end }}
+{{- end }}

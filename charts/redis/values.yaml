@@ -1,0 +1,144 @@
+# Default values for redis.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Redis architecture: standalone or master-replica
+architecture: master-replica
+
+# Master configuration
+master:
+  replicaCount: 1
+  service:
+    type: ClusterIP
+    port: 6379
+
+# Replica configuration  
+replica:
+  replicaCount: 2
+  service:
+    type: ClusterIP
+    port: 6379
+
+image:
+  repository: redis
+  pullPolicy: IfNotPresent
+  tag: "8.2.2-alpine3.22"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  fsGroup: 999
+
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 999
+
+service:
+  type: ClusterIP
+  port: 6379
+  # Service for master-replica setup
+  master:
+    type: ClusterIP
+    port: 6379
+  replica:
+    type: ClusterIP
+    port: 6379
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+persistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 8Gi
+  annotations: {}
+  # Master persistence
+  master:
+    enabled: true
+    storageClass: ""
+    accessMode: ReadWriteOnce
+    size: 8Gi
+    annotations: {}
+  # Replica persistence
+  replica:
+    enabled: true
+    storageClass: ""
+    accessMode: ReadWriteOnce
+    size: 8Gi
+    annotations: {}
+
+redis:
+  # Redis configuration
+  config: |
+    save 900 1
+    save 300 10
+    save 60 10000
+    maxmemory-policy allkeys-lru
+    # appendonly yes
+  # Master specific config
+  master:
+    config: |
+      save 900 1
+      save 300 10
+      save 60 10000
+      maxmemory-policy allkeys-lru
+  # Replica specific config
+  replica:
+    config: |
+      save ""
+      maxmemory-policy allkeys-lru
+  # Auth configuration
+  auth:
+    enabled: false
+    password: ""
+
+metrics:
+  enabled: false
+  image:
+    repository: oliver006/redis_exporter
+    tag: v1.45.0
+    pullPolicy: IfNotPresent
+  port: 9121
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
