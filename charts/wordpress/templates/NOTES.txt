@@ -1,0 +1,48 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your WordPress site has been deployed successfully.
+
+1. Get the application URL:
+{{- if .Values.wordpress.ingress.enabled }}
+{{- range $host := .Values.wordpress.ingress.hosts }}
+  {{- range .paths }}
+  http{{ if $.Values.wordpress.ingress.tls }}s{{ end }}://{{ $host.host }}{{ .path }}
+  {{- end }}
+{{- end }}
+{{- else if contains "NodePort" .Values.wordpress.service.type }}
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "wordpress.fullname" . }})
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo http://$NODE_IP:$NODE_PORT
+{{- else if contains "LoadBalancer" .Values.wordpress.service.type }}
+  NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+        You can watch the status by running: kubectl get --namespace {{ .Release.Namespace }} svc -w {{ include "wordpress.fullname" . }}
+  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "wordpress.fullname" . }} --template "{{"{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}"}}")
+  echo http://$SERVICE_IP:{{ .Values.wordpress.service.port }}
+{{- else if contains "ClusterIP" .Values.wordpress.service.type }}
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app={{ include "wordpress.name" . }},release={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+  echo "Visit http://127.0.0.1:8080 to access WordPress"
+  kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 8080:80
+{{- end }}
+
+2. WordPress Admin Credentials:
+
+  Username: {{ .Values.wordpress.admin.user }}
+
+  Password:
+    kubectl get secret --namespace {{ .Release.Namespace }} {{ include "wordpress.fullname" . }}-secrets -o jsonpath="{.data.wordpress-admin-password}" | base64 --decode; echo
+
+  Email: {{ .Values.wordpress.admin.email }}
+
+3. Database credentials (for advanced users):
+
+  MariaDB Root Password:
+    kubectl get secret --namespace {{ .Release.Namespace }} {{ include "wordpress.fullname" . }}-secrets -o jsonpath="{.data.mariadb-root-password}" | base64 --decode; echo
+
+  MariaDB User Password (for WordPress):
+    kubectl get secret --namespace {{ .Release.Namespace }} {{ include "wordpress.fullname" . }}-secrets -o jsonpath="{.data.mariadb-user-password}" | base64 --decode; echo
+
+{{ if not .Values.secrets.wordpress.adminPassword }}
+⚠️  WARNING: Auto-generated passwords were used. To retrieve them later, use the commands above.
+{{- end }}
+
+For more information, visit the WordPress documentation at https://wordpress.org/support/

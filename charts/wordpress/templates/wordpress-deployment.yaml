@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "wordpress.fullname" . }}
+  labels:
+    app: {{ include "wordpress.name" . }}
+    chart: {{ include "wordpress.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.wordpress.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "wordpress.name" . }}
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "wordpress.name" . }}
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+      - name: wordpress
+        image: "{{ .Values.wordpress.image.repository }}:{{ .Values.wordpress.image.tag }}"
+        imagePullPolicy: {{ .Values.wordpress.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: 80
+          protocol: TCP
+        env:
+        - name: WORDPRESS_DB_HOST
+          value: {{ include "wordpress.fullname" . }}-mariadb:{{ .Values.mariadb.service.port }}
+        - name: WORDPRESS_DB_NAME
+          value: {{ .Values.mariadb.database.name | quote }}
+        - name: WORDPRESS_DB_USER
+          value: {{ .Values.mariadb.database.user | quote }}
+        - name: WORDPRESS_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "wordpress.fullname" . }}-secrets
+              key: mariadb-user-password
+        - name: WORDPRESS_TABLE_PREFIX
+          value: {{ .Values.wordpress.env.tablePrefix | quote }}
+        - name: WORDPRESS_ADMIN_USER
+          value: {{ .Values.wordpress.admin.user | quote }}
+        - name: WORDPRESS_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "wordpress.fullname" . }}-secrets
+              key: wordpress-admin-password
+        - name: WORDPRESS_ADMIN_EMAIL
+          value: {{ .Values.wordpress.admin.email | quote }}
+        volumeMounts:
+        - name: wordpress-data
+          mountPath: /var/www/html
+        resources:
+          {{- toYaml .Values.wordpress.resources | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 120
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 6
+        readinessProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: wordpress-data
+        {{- if .Values.wordpress.persistence.enabled }}
+        persistentVolumeClaim:
+          claimName: {{ include "wordpress.fullname" . }}-pvc
+        {{- else }}
+        emptyDir: {}
+        {{- end }}

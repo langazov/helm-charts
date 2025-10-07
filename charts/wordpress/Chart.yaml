@@ -1,0 +1,13 @@
+apiVersion: v2
+name: wordpress
+description: A Helm chart for WordPress with MariaDB
+type: application
+version: 0.1.0
+appVersion: "latest"
+keywords:
+  - wordpress
+  - cms
+  - blog
+  - mariadb
+maintainers:
+  - name: emilo
