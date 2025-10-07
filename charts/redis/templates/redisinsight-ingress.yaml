@@ -1,0 +1,42 @@
+{{- if and .Values.redisinsight.enabled .Values.redisinsight.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "redis.fullname" . }}-redisinsight
+  labels:
+    {{- include "redis.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redisinsight
+  {{- with .Values.redisinsight.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.redisinsight.ingress.className }}
+  ingressClassName: {{ .Values.redisinsight.ingress.className }}
+  {{- end }}
+  {{- if .Values.redisinsight.ingress.tls }}
+  tls:
+    {{- range .Values.redisinsight.ingress.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range .Values.redisinsight.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ include "redis.fullname" $ }}-redisinsight
+                port:
+                  number: {{ $.Values.redisinsight.service.port }}
+          {{- end }}
+    {{- end }}
+{{- end }}

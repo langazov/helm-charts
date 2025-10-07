@@ -1,0 +1,22 @@
+{{- if and .Values.redisinsight.enabled .Values.redisinsight.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "redis.fullname" . }}-redisinsight-data
+  labels:
+    {{- include "redis.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redisinsight
+  {{- with .Values.redisinsight.persistence.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    - {{ .Values.redisinsight.persistence.accessMode }}
+  {{- if .Values.redisinsight.persistence.storageClass }}
+  storageClassName: {{ .Values.redisinsight.persistence.storageClass }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.redisinsight.persistence.size }}
+{{- end }}
