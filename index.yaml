@@ -52,4 +52,22 @@ entries:
     urls:
     - https://github.com/langazov/helm-charts/releases/download/webapp-0.1.0/webapp-0.1.0.tgz
     version: 0.1.0
-generated: "2025-10-06T15:49:03.673837197Z"
+  wordpress:
+  - apiVersion: v2
+    appVersion: latest
+    created: "2025-10-07T20:33:20.34039231Z"
+    description: A Helm chart for WordPress with MariaDB
+    digest: 6f1f97c1f24272446ebacfd869c238fd02c5e9787b8d95d091982facc1b855ce
+    keywords:
+    - wordpress
+    - cms
+    - blog
+    - mariadb
+    maintainers:
+    - name: emilo
+    name: wordpress
+    type: application
+    urls:
+    - https://github.com/langazov/helm-charts/releases/download/wordpress-0.1.0/wordpress-0.1.0.tgz
+    version: 0.1.0
+generated: "2025-10-07T20:33:20.340402199Z"
