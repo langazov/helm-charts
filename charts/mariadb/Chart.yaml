@@ -1,0 +1,17 @@
+apiVersion: v2
+name: mariadb
+description: A Helm chart for MariaDB LTS with random password generation
+type: application
+version: 0.1.0
+appVersion: "lts"
+keywords:
+  - mariadb
+  - mysql
+  - database
+  - sql
+home: https://github.com/langazov/helm-charts
+sources:
+  - https://github.com/langazov/helm-charts
+maintainers:
+  - name: Internet Market Solutions
+    email: langazov@gmail.com
