@@ -27,6 +27,7 @@ spec:
         - name: http
           containerPort: 80
           protocol: TCP
+        {{- $smtp := .Values.wordpress.smtp }}
         env:
         - name: WORDPRESS_DB_HOST
           value: {{ include "wordpress.fullname" . }}-mariadb:{{ .Values.mariadb.service.port }}
@@ -50,6 +51,43 @@ spec:
               key: wordpress-admin-password
         - name: WORDPRESS_ADMIN_EMAIL
           value: {{ .Values.wordpress.admin.email | quote }}
+        {{- if $smtp.enabled }}
+        {{- if $smtp.host }}
+        - name: WORDPRESS_SMTP_HOST
+          value: {{ $smtp.host | quote }}
+        {{- end }}
+        {{- if $smtp.port }}
+        - name: WORDPRESS_SMTP_PORT
+          value: {{ $smtp.port | quote }}
+        {{- end }}
+        {{- if $smtp.auth }}
+        - name: WORDPRESS_SMTP_AUTH
+          value: {{ $smtp.auth | quote }}
+        {{- end }}
+        {{- if $smtp.username }}
+        - name: WORDPRESS_SMTP_USERNAME
+          value: {{ $smtp.username | quote }}
+        {{- end }}
+        {{- if $smtp.secure }}
+        - name: WORDPRESS_SMTP_SECURE
+          value: {{ $smtp.secure | quote }}
+        {{- end }}
+        {{- if $smtp.from }}
+        - name: WORDPRESS_SMTP_FROM
+          value: {{ $smtp.from | quote }}
+        {{- end }}
+        {{- if $smtp.fromName }}
+        - name: WORDPRESS_SMTP_NAME
+          value: {{ $smtp.fromName | quote }}
+        {{- end }}
+        {{- if ne (default "" .Values.secrets.wordpress.smtpPassword) "" }}
+        - name: WORDPRESS_SMTP_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "wordpress.fullname" . }}-secrets
+              key: wordpress-smtp-password
+        {{- end }}
+        {{- end }}
         volumeMounts:
         - name: wordpress-data
           mountPath: /var/www/html
