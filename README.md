@@ -7,7 +7,7 @@ This repository contains Helm charts that are automatically packaged and publish
 Add this Helm repository to your local Helm installation:
 
 ```bash
-helm repo add my-charts https://YOUR_USERNAME.github.io/helm-charts
+helm repo add my-charts https://langazov.github.io/helm-charts
 helm repo update
 ```
 
