@@ -1,0 +1,255 @@
+# Default values for gitea.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: gitea/gitea
+  pullPolicy: IfNotPresent
+  # Overrides the image tag; defaults to appVersion in Chart.yaml
+  tag: "1.21.11"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+
+podLabels: {}
+
+podSecurityContext:
+  fsGroup: 1000
+  runAsNonRoot: true
+  runAsUser: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
+
+service:
+  type: ClusterIP
+  port: 3000
+  annotations: {}
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - host: gitea.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: gitea-tls
+  #    hosts:
+  #      - gitea.example.com
+
+persistence:
+  enabled: true
+  # Storage class name
+  storageClassName: ""
+  # Access mode
+  accessMode: ReadWriteOnce
+  # Size of persistent volume
+  size: 10Gi
+  # Annotations for the PVC
+  annotations: {}
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+livenessProbe:
+  httpGet:
+    path: /api/healthz
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /api/healthz
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Gitea-specific configuration
+gitea:
+  # Admin user configuration
+  admin:
+    username: gitea_admin
+    password: ""  # If empty, a random password will be generated
+    email: admin@gitea.local
+
+  # Application settings
+  appName: "Gitea"
+
+  # Database configuration
+  database:
+    type: postgres  # Options: sqlite3, mysql, postgres (postgres is default with built-in DB)
+    # For SQLite3:
+    # type: sqlite3
+    # For MariaDB:
+    # type: mysql
+    # host: <release-name>-mariadb:3306
+    # port: 3306
+    # name: gitea
+    # username: gitea
+    # password: ""
+    # For External PostgreSQL:
+    # type: postgres
+    # host: external-postgres.example.com
+    # port: 5432
+    # name: gitea
+    # username: gitea
+    # password: ""
+    # sslMode: disable
+
+  # Server configuration
+  server:
+    domain: localhost
+    rootUrl: http://localhost:3000
+    sshPort: 22
+    httpPort: 3000
+    startSshServer: false
+    offsetDateTime: false
+
+  # Security settings
+  security:
+    secretKey: ""  # If empty, a random key will be generated
+    internalTokenUri: ""  # If empty, a random token will be generated
+
+  # OAuth2 configuration (optional)
+  oauth2: {}
+    # # Enable OAuth2
+    # enabled: false
+    # providers:
+    #   - name: github
+    #     clientId: ""
+    #     clientSecret: ""
+
+  # Logging configuration
+  log:
+    level: info
+    mode: console
+
+  # Extra configuration that will be appended to app.ini
+  config: {}
+    # Some optional key: value
+
+# MariaDB configuration
+mariadb:
+  enabled: false
+
+  image:
+    repository: mariadb
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  replicaCount: 1
+
+  service:
+    type: ClusterIP
+    port: 3306
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+  persistence:
+    enabled: true
+    storageClassName: ""
+    accessMode: ReadWriteOnce
+    size: 8Gi
+    annotations: {}
+
+  # Database configuration
+  database:
+    name: gitea
+    user: gitea
+
+# PostgreSQL configuration
+postgres:
+  enabled: true
+
+  image:
+    repository: postgres
+    tag: "15-alpine"
+    pullPolicy: IfNotPresent
+
+  replicaCount: 1
+
+  service:
+    type: ClusterIP
+    port: 5432
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+  persistence:
+    enabled: true
+    storageClassName: ""
+    accessMode: ReadWriteOnce
+    size: 8Gi
+    annotations: {}
+
+  # Database configuration
+  database:
+    name: gitea
+    user: gitea
+
+# Credentials
+# Leave empty to auto-generate secure random passwords
+secrets:
+  mariadb:
+    rootPassword: ""
+    userPassword: ""
+  postgres:
+    password: ""
+  gitea:
+    adminPassword: ""
