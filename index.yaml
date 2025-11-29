@@ -46,6 +46,28 @@ entries:
     urls:
     - https://github.com/langazov/helm-charts/releases/download/mariadb-0.1.0/mariadb-0.1.0.tgz
     version: 0.1.0
+  mongodb:
+  - apiVersion: v2
+    appVersion: "8.0"
+    created: "2025-11-29T14:09:33.924601185Z"
+    description: A Helm chart for MongoDB with authentication and random password
+      generation
+    digest: faadd32744f0775b6fa095791af715c07ca9172564819d41a050190b3ed2ce0c
+    home: https://github.com/langazov/helm-charts
+    keywords:
+    - mongodb
+    - database
+    - nosql
+    maintainers:
+    - email: langazov@gmail.com
+      name: langazov
+    name: mongodb
+    sources:
+    - https://github.com/langazov/helm-charts
+    type: application
+    urls:
+    - https://github.com/langazov/helm-charts/releases/download/mongodb-0.1.0/mongodb-0.1.0.tgz
+    version: 0.1.0
   redis:
   - apiVersion: v2
     appVersion: 8.2.2
@@ -116,4 +138,4 @@ entries:
     urls:
     - https://github.com/langazov/helm-charts/releases/download/wordpress-0.1.0/wordpress-0.1.0.tgz
     version: 0.1.0
-generated: "2025-11-16T10:01:47.93689572Z"
+generated: "2025-11-29T14:09:33.924617686Z"
