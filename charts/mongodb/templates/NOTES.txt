@@ -1,0 +1,42 @@
+1. Get the MongoDB root password by running:
+
+    kubectl get secret --namespace {{ .Release.Namespace }} {{ include "mongodb.fullname" . }} -o jsonpath="{.data.mongodb-root-password}" | base64 -d
+
+{{- if .Values.auth.username }}
+
+2. Get the MongoDB user password by running:
+
+    kubectl get secret --namespace {{ .Release.Namespace }} {{ include "mongodb.fullname" . }} -o jsonpath="{.data.mongodb-password}" | base64 -d
+
+3. Connect to the database as user "{{ .Values.auth.username }}":
+
+    kubectl run {{ include "mongodb.fullname" . }}-client --rm --tty -i --restart='Never' --image {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }} --namespace {{ .Release.Namespace }} --command -- mongosh --host {{ include "mongodb.fullname" . }} -u {{ .Values.auth.username }} -p {{ .Values.auth.database }}
+{{- else }}
+
+2. Connect to the database as root:
+
+    kubectl run {{ include "mongodb.fullname" . }}-client --rm --tty -i --restart='Never' --image {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }} --namespace {{ .Release.Namespace }} --command -- mongosh --host {{ include "mongodb.fullname" . }} -u {{ .Values.auth.rootUsername }} -p
+{{- end }}
+
+4. To connect from outside the cluster:
+
+{{- if contains "NodePort" .Values.service.type }}
+
+    export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "mongodb.fullname" . }})
+    export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+    echo "MongoDB is available at $NODE_IP:$NODE_PORT"
+
+{{- else if contains "LoadBalancer" .Values.service.type }}
+
+    NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+    Watch the status with: kubectl get svc --namespace {{ .Release.Namespace }} -w {{ include "mongodb.fullname" . }}
+
+    export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "mongodb.fullname" . }} --template "{{"{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}"}}")
+    echo "MongoDB is available at $SERVICE_IP:{{ .Values.service.port }}"
+
+{{- else if contains "ClusterIP" .Values.service.type }}
+
+    kubectl port-forward --namespace {{ .Release.Namespace }} svc/{{ include "mongodb.fullname" . }} 27017:27017 &
+    mongosh --host 127.0.0.1 --port 27017 -u {{ .Values.auth.rootUsername }} -p
+
+{{- end }}
