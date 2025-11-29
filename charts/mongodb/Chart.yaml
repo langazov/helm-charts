@@ -1,0 +1,16 @@
+apiVersion: v2
+name: mongodb
+description: A Helm chart for MongoDB with authentication and random password generation
+type: application
+version: 0.1.0
+appVersion: "8.0"
+keywords:
+  - mongodb
+  - database
+  - nosql
+home: https://github.com/langazov/helm-charts
+sources:
+  - https://github.com/langazov/helm-charts
+maintainers:
+  - name: langazov
+    email: langazov@gmail.com
