@@ -68,6 +68,29 @@ entries:
     urls:
     - https://github.com/langazov/helm-charts/releases/download/mongodb-0.1.0/mongodb-0.1.0.tgz
     version: 0.1.0
+  phpmyadmin:
+  - apiVersion: v2
+    appVersion: 5.2.1
+    created: "2025-11-30T16:27:34.97969973Z"
+    description: A Helm chart for phpMyAdmin
+    digest: 29e2426f6e19eb25e3569c21695e7cb0c848b8041a04ac141054335a37ba06c0
+    home: https://github.com/langazov/helm-charts
+    keywords:
+    - phpmyadmin
+    - mysql
+    - mariadb
+    - database
+    - admin
+    maintainers:
+    - email: emilo@yourdomain.com
+      name: emilo
+    name: phpmyadmin
+    sources:
+    - https://github.com/langazov/helm-charts
+    type: application
+    urls:
+    - https://github.com/langazov/helm-charts/releases/download/phpmyadmin-0.1.0/phpmyadmin-0.1.0.tgz
+    version: 0.1.0
   redis:
   - apiVersion: v2
     appVersion: 8.2.2
@@ -138,4 +161,4 @@ entries:
     urls:
     - https://github.com/langazov/helm-charts/releases/download/wordpress-0.1.0/wordpress-0.1.0.tgz
     version: 0.1.0
-generated: "2025-11-29T14:09:33.924617686Z"
+generated: "2025-11-30T16:27:34.979711121Z"
