@@ -40,4 +40,6 @@ Your phpMyAdmin instance has been deployed successfully.
 
      kubectl get secret --namespace {{ .Release.Namespace }} <mariadb-release-name> -o jsonpath="{.data.mariadb-root-password}" | base64 -d
 
+     (Replace <mariadb-release-name> with the actual name of your MariaDB release, e.g., "my-mariadb")
+
 For more information, visit the phpMyAdmin documentation at https://www.phpmyadmin.net/docs/
