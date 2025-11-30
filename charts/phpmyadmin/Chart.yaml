@@ -1,0 +1,8 @@
+apiVersion: v2
+name: phpmyadmin
+description: A Helm chart for phpMyAdmin
+type: application
+version: 0.1.0
+appVersion: "5.2.1"
+maintainers:
+  - name: emilo
