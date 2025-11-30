@@ -33,6 +33,7 @@ securityContext:
   readOnlyRootFilesystem: false  # phpMyAdmin needs to write temp files
   runAsNonRoot: true
   runAsUser: 1000
+  allowPrivilegeEscalation: false
 
 service:
   type: ClusterIP
