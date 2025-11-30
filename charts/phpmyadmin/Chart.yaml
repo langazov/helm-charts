@@ -6,13 +6,13 @@ version: 0.1.0
 appVersion: "5.2.1"
 maintainers:
   - name: emilo
-    email: maintainer@example.com
+    email: emilo@yourdomain.com
 keywords:
   - phpmyadmin
   - mysql
   - mariadb
   - database
   - admin
-home: https://www.phpmyadmin.net/
+home: https://github.com/langazov/helm-charts
 sources:
-  - https://github.com/phpmyadmin/phpmyadmin
+  - https://github.com/langazov/helm-charts

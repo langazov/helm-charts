@@ -19,7 +19,7 @@ Your phpMyAdmin instance has been deployed successfully.
   export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "phpmyadmin.fullname" . }} --template "{{"{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}"}}")
   echo "phpMyAdmin is available at http://$SERVICE_IP:{{ .Values.service.port }}"
 {{- else if contains "ClusterIP" .Values.service.type }}
-  kubectl port-forward --namespace {{ .Release.Namespace }} svc/{{ include "phpmyadmin.fullname" . }} 8080:{{ .Values.service.port }} &
+  kubectl port-forward --namespace {{ .Release.Namespace }} svc/{{ include "phpmyadmin.fullname" . }} 8080:{{ .Values.service.port }}
   echo "phpMyAdmin is available at http://127.0.0.1:8080"
 {{- end }}
 
