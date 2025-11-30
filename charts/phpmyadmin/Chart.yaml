@@ -6,3 +6,12 @@ version: 0.1.0
 appVersion: "5.2.1"
 maintainers:
   - name: emilo
+keywords:
+  - phpmyadmin
+  - mysql
+  - mariadb
+  - database
+  - admin
+home: https://www.phpmyadmin.net/
+sources:
+  - https://github.com/phpmyadmin/phpmyadmin
