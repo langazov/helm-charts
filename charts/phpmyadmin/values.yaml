@@ -86,4 +86,6 @@ phpmyadmin:
   # PMA_PORT: Database port
   dbPort: "3306"
   # PMA_ARBITRARY: Allow arbitrary server connection
-  arbitrary: 1
+  # WARNING: Setting this to 1 enables arbitrary server connection, which is a significant security risk.
+  # Only enable in controlled development environments. See https://docs.phpmyadmin.net/en/latest/config.html#allow-arbitrary-server-connection
+  arbitrary: 0
