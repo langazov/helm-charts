@@ -4,6 +4,7 @@ description: A Helm chart for phpMyAdmin
 type: application
 version: 0.1.0
 appVersion: "5.2.1"
+icon: https://www.phpmyadmin.net/static/images/logo-og.png
 maintainers:
   - name: emilo
     email: emilo@yourdomain.com
