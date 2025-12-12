@@ -6,6 +6,10 @@ metadata:
   labels:
     {{- include "mongodb-replicaset.labels" . | nindent 4 }}
     app.kubernetes.io/component: rs-reconcile
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation
 spec:
   schedule: {{ .Values.reconcile.schedule | quote }}
   concurrencyPolicy: Forbid

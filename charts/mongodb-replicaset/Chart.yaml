@@ -2,7 +2,7 @@ apiVersion: v2
 name: mongodb-replicaset
 description: A MongoDB replica set with configurable member count and post-deploy initialization job
 type: application
-version: 0.1.4
+version: 0.1.5
 appVersion: "7.0"
 icon: https://raw.githubusercontent.com/langazov/helm-charts/main/charts/mongodb-replicaset/icon.svg
 keywords:
