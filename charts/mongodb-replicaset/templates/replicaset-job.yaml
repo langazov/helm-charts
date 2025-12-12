@@ -48,16 +48,30 @@ spec:
               PRIMARY="{{ include "mongodb-replicaset.fullname" . }}-0.{{ include "mongodb-replicaset.headlessServiceName" . }}.{{ .Release.Namespace }}.svc.cluster.local:27017"
               REPLSET="{{ .Values.replicaSet.name }}"
               TIMEOUT={{ .Values.replicaSet.initTimeoutSeconds }}
+              {{- $full := include "mongodb-replicaset.fullname" . -}}
+              {{- $headless := include "mongodb-replicaset.headlessServiceName" . -}}
+              {{- $ns := .Release.Namespace -}}
+              {{- $count := include "mongodb-replicaset.effectiveReplicaCount" . | int }}
+              REPLICA_COUNT={{ $count }}
 
-              echo "Waiting for MongoDB primary candidate at ${PRIMARY}"
+              echo "Waiting for all ${REPLICA_COUNT} MongoDB pods to be ready"
               start=$(date +%s)
-              until mongosh --quiet --host "${PRIMARY}" -u "${MONGO_INITDB_ROOT_USERNAME}" -p "${MONGO_INITDB_ROOT_PASSWORD}" --authenticationDatabase admin --eval "db.adminCommand({ ping: 1 })" >/dev/null 2>&1; do
+              {{- range $i, $_ := until $count }}
+              MEMBER_{{ $i }}="{{ printf "%s-%d.%s.%s.svc.cluster.local:27017" $full $i $headless $ns }}"
+              {{- end }}
+
+              # Wait for all pods to be ready and have DNS records
+              {{- range $i, $_ := until $count }}
+              until mongosh --quiet --host "${MEMBER_{{ $i }}}" -u "${MONGO_INITDB_ROOT_USERNAME}" -p "${MONGO_INITDB_ROOT_PASSWORD}" --authenticationDatabase admin --eval "db.adminCommand({ ping: 1 })" >/dev/null 2>&1; do
                 if [ $(( $(date +%s) - start )) -ge "${TIMEOUT}" ]; then
-                  echo "Timed out waiting for MongoDB readiness" >&2
+                  echo "Timed out waiting for MongoDB pod {{ $i }} readiness" >&2
                   exit 1
                 fi
+                echo "Waiting for ${MEMBER_{{ $i }}} to be ready..."
                 sleep 2
               done
+              echo "Pod {{ $i }} is ready"
+              {{- end }}
 
               if mongosh --quiet --host "${PRIMARY}" -u "${MONGO_INITDB_ROOT_USERNAME}" -p "${MONGO_INITDB_ROOT_PASSWORD}" --authenticationDatabase admin --eval "rs.status()" >/dev/null 2>&1; then
                 echo "Replica set already configured; exiting"
