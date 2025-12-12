@@ -1,0 +1,82 @@
+{{- if gt (int .Values.replicaCount) 0 }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "mongodb-replicaset.fullname" . }}-rs-init
+  labels:
+    {{- include "mongodb-replicaset.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rs-init
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        {{- include "mongodb-replicaset.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: rs-init
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "mongodb-replicaset.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      restartPolicy: OnFailure
+      containers:
+        - name: rs-init
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          env:
+            - name: MONGO_INITDB_ROOT_USERNAME
+              value: {{ .Values.auth.rootUsername | quote }}
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "mongodb-replicaset.secretName" . }}
+                  key: {{ include "mongodb-replicaset.rootPasswordKey" . }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -eu
+              PRIMARY="{{ include "mongodb-replicaset.fullname" . }}-0.{{ include "mongodb-replicaset.headlessServiceName" . }}.{{ .Release.Namespace }}.svc.cluster.local:27017"
+              REPLSET="{{ .Values.replicaSet.name }}"
+              TIMEOUT={{ .Values.replicaSet.initTimeoutSeconds }}
+
+              echo "Waiting for MongoDB primary candidate at ${PRIMARY}"
+              start=$(date +%s)
+              until mongosh --quiet --host "${PRIMARY}" -u "${MONGO_INITDB_ROOT_USERNAME}" -p "${MONGO_INITDB_ROOT_PASSWORD}" --authenticationDatabase admin --eval "db.adminCommand({ ping: 1 })" >/dev/null 2>&1; do
+                if [ $(( $(date +%s) - start )) -ge "${TIMEOUT}" ]; then
+                  echo "Timed out waiting for MongoDB readiness" >&2
+                  exit 1
+                fi
+                sleep 2
+              done
+
+              if mongosh --quiet --host "${PRIMARY}" -u "${MONGO_INITDB_ROOT_USERNAME}" -p "${MONGO_INITDB_ROOT_PASSWORD}" --authenticationDatabase admin --eval "rs.status()" >/dev/null 2>&1; then
+                echo "Replica set already configured; exiting"
+                exit 0
+              fi
+
+              cat <<'EOF' > /tmp/initiate.js
+              const setName = "{{ .Values.replicaSet.name }}";
+              const members = [
+              {{- $full := include "mongodb-replicaset.fullname" . -}}
+              {{- $headless := include "mongodb-replicaset.headlessServiceName" . -}}
+              {{- $ns := .Release.Namespace -}}
+              {{- $count := int .Values.replicaCount -}}
+              {{- range $i, $_ := until $count }}
+                { _id: {{ $i }}, host: "{{ printf "%s-%d.%s.%s.svc.cluster.local:27017" $full $i $headless $ns }}" }{{- if lt (add $i 1) $count }},{{- end }}
+              {{- end }}
+              ];
+              print(`Initiating replica set ${setName} with ${members.length} members`);
+              rs.initiate({ _id: setName, members });
+              EOF
+
+              mongosh --quiet --host "${PRIMARY}" -u "${MONGO_INITDB_ROOT_USERNAME}" -p "${MONGO_INITDB_ROOT_PASSWORD}" --authenticationDatabase admin /tmp/initiate.js
+{{- end }}

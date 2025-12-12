@@ -1,0 +1,15 @@
+{{- if and .Values.podDisruptionBudget.enabled (gt (int .Values.replicaCount) 1) }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "mongodb-replicaset.fullname" . }}
+  labels:
+    {{- include "mongodb-replicaset.labels" . | nindent 4 }}
+spec:
+  {{- $defaultMin := include "mongodb-replicaset.replicaSetMajority" .Values.replicaCount | int }}
+  minAvailable: {{ default $defaultMin .Values.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "mongodb-replicaset.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: mongod
+{{- end }}
