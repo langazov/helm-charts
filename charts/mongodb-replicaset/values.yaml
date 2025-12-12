@@ -40,7 +40,12 @@ autoscaling:
 
 reconcile:
   enabled: true
-  hook: false
+  # If true, reconcile runs as a Helm hook on install/upgrade and is cleaned up by hook-delete-policy.
+  # If false, a new reconcile Job is created on each upgrade (name includes release revision) to avoid immutable Job updates.
+  hook: true
+  # Cron schedule for periodic reconcile to handle HPA/manual scale without Helm upgrades.
+  # Set to "" to disable the CronJob.
+  schedule: "*/5 * * * *"
   ttlSecondsAfterFinished: 600
   # How many StatefulSet ordinals to check for DNS presence; defaults to autoscaling.maxReplicas, then replicaCount.
   maxReplicaSearch: null

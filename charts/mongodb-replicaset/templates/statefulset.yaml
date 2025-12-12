@@ -77,7 +77,7 @@ spec:
                     STEP_DOWN={{ .Values.removeOnTerminate.stepDownSeconds }}
 
                     get_primary() {
-                      mongosh --quiet --host "${PRIMARY_HOST}" -u "${MONGO_INITDB_ROOT_USERNAME}" -p "${MONGO_INITDB_ROOT_PASSWORD}" --authenticationDatabase admin --eval "db.isMaster().primary" 2>/dev/null || true
+                      mongosh --quiet --host "${PRIMARY_HOST}" -u "${MONGO_INITDB_ROOT_USERNAME}" -p "${MONGO_INITDB_ROOT_PASSWORD}" --authenticationDatabase admin --eval "db.hello().primary" 2>/dev/null || true
                     }
 
                     remove_member() {
@@ -154,7 +154,7 @@ spec:
       {{- if .Values.affinity }}
       affinity:
         {{- toYaml .Values.affinity | nindent 8 }}
-      {{- else if gt (int .Values.replicaCount) 1 }}
+      {{- else if gt (include "mongodb-replicaset.effectiveReplicaCount" . | int) 1 }}
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:

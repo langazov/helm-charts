@@ -7,10 +7,7 @@ Replica set DNS members:
 {{- $full := include "mongodb-replicaset.fullname" . -}}
 {{- $headless := include "mongodb-replicaset.headlessServiceName" . -}}
 {{- $ns := .Release.Namespace -}}
-{{- $count := int .Values.replicaCount -}}
-{{- if .Values.autoscaling.enabled }}
-{{- $count = int .Values.autoscaling.minReplicas -}}
-{{- end }}
+{{- $count := include "mongodb-replicaset.effectiveReplicaCount" . | int -}}
 {{- range $i, $_ := until $count }}
   - {{ printf "%s-%d.%s.%s.svc.cluster.local:27017" $full $i $headless $ns }}
 {{- end }}

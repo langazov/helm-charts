@@ -2,7 +2,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ include "mongodb-replicaset.fullname" . }}-reconcile
+  name: {{ include "mongodb-replicaset.fullname" . }}-reconcile{{- if not .Values.reconcile.hook }}-{{ .Release.Revision }}{{- end }}
   labels:
     {{- include "mongodb-replicaset.labels" . | nindent 4 }}
     app.kubernetes.io/component: rs-reconcile

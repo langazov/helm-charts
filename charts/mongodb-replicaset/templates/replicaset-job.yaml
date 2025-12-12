@@ -1,4 +1,4 @@
-{{- if gt (int .Values.replicaCount) 0 }}
+{{- if gt (include "mongodb-replicaset.effectiveReplicaCount" . | int) 0 }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -69,7 +69,7 @@ spec:
               {{- $full := include "mongodb-replicaset.fullname" . -}}
               {{- $headless := include "mongodb-replicaset.headlessServiceName" . -}}
               {{- $ns := .Release.Namespace -}}
-              {{- $count := int .Values.replicaCount -}}
+              {{- $count := include "mongodb-replicaset.effectiveReplicaCount" . | int -}}
               {{- range $i, $_ := until $count }}
                 { _id: {{ $i }}, host: "{{ printf "%s-%d.%s.%s.svc.cluster.local:27017" $full $i $headless $ns }}" }{{- if lt (add $i 1) $count }},{{- end }}
               {{- end }}

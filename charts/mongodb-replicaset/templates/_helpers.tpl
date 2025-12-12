@@ -106,6 +106,18 @@ Resolve max ordinals to search for members (used by reconcile cronjob)
 {{- end }}
 
 {{/*
+Effective replica count for resources that need the initial pod count.
+When autoscaling is enabled, the StatefulSet starts at autoscaling.minReplicas.
+*/}}
+{{- define "mongodb-replicaset.effectiveReplicaCount" -}}
+{{- if .Values.autoscaling.enabled -}}
+{{- .Values.autoscaling.minReplicas | int -}}
+{{- else -}}
+{{- .Values.replicaCount | int -}}
+{{- end -}}
+{{- end }}
+
+{{/*
 Resolve the MongoDB root password; reuse existing secret if present to avoid regen on upgrades
 */}}
 {{- define "mongodb-replicaset.rootPassword" -}}
