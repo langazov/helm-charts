@@ -1,4 +1,5 @@
-{{- if and .Values.podDisruptionBudget.enabled (gt (int .Values.replicaCount) 1) }}
+{{- $count := include "mongodb-replicaset.effectiveReplicaCount" . | int -}}
+{{- if and .Values.podDisruptionBudget.enabled (gt $count 1) }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
@@ -6,7 +7,7 @@ metadata:
   labels:
     {{- include "mongodb-replicaset.labels" . | nindent 4 }}
 spec:
-  {{- $defaultMin := include "mongodb-replicaset.replicaSetMajority" .Values.replicaCount | int }}
+  {{- $defaultMin := include "mongodb-replicaset.replicaSetMajority" $count | int }}
   minAvailable: {{ default $defaultMin .Values.podDisruptionBudget.minAvailable }}
   selector:
     matchLabels:

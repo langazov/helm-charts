@@ -1,0 +1,90 @@
+{{- if and .Values.reconcile.enabled .Values.reconcile.schedule (gt (include "mongodb-replicaset.maxReplicaSearch" . | int) 0) }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "mongodb-replicaset.fullname" . }}-reconcile-cron
+  labels:
+    {{- include "mongodb-replicaset.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rs-reconcile
+spec:
+  schedule: {{ .Values.reconcile.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      {{- if gt (int .Values.reconcile.ttlSecondsAfterFinished) 0 }}
+      ttlSecondsAfterFinished: {{ .Values.reconcile.ttlSecondsAfterFinished }}
+      {{- end }}
+      template:
+        metadata:
+          labels:
+            {{- include "mongodb-replicaset.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: rs-reconcile
+        spec:
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          serviceAccountName: {{ include "mongodb-replicaset.serviceAccountName" . }}
+          restartPolicy: OnFailure
+          securityContext:
+            {{- toYaml .Values.podSecurityContext | nindent 12 }}
+          containers:
+            - name: rs-reconcile
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              securityContext:
+                {{- toYaml .Values.securityContext | nindent 16 }}
+              env:
+                - name: MONGO_INITDB_ROOT_USERNAME
+                  value: {{ .Values.auth.rootUsername | quote }}
+                - name: MONGO_INITDB_ROOT_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "mongodb-replicaset.secretName" . }}
+                      key: {{ include "mongodb-replicaset.rootPasswordKey" . }}
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+                  PRIMARY="{{ include "mongodb-replicaset.fullname" . }}-0.{{ include "mongodb-replicaset.headlessServiceName" . }}.{{ .Release.Namespace }}.svc.cluster.local:27017"
+                  mongosh --quiet --host "${PRIMARY}" -u "${MONGO_INITDB_ROOT_USERNAME}" -p "${MONGO_INITDB_ROOT_PASSWORD}" --authenticationDatabase admin <<'EOF'
+                  const max = {{ include "mongodb-replicaset.maxReplicaSearch" . }};
+                  const name = "{{ include "mongodb-replicaset.fullname" . }}";
+                  const headless = "{{ include "mongodb-replicaset.headlessServiceName" . }}.{{ .Release.Namespace }}.svc.cluster.local";
+                  const hosts = [];
+                  for (let i = 0; i < max; i++) {
+                    hosts.push(`${name}-${i}.${headless}:27017`);
+                  }
+
+                  let status;
+                  try {
+                    status = rs.status();
+                  } catch (e) {
+                    if (e.codeName === "NotYetInitialized") {
+                      print("Replica set not initialized yet; skipping reconcile");
+                      quit(0);
+                    }
+                    throw e;
+                  }
+
+                  const existing = new Set(status.members.map(m => m.name));
+                  let added = 0;
+                  hosts.forEach(h => {
+                    if (existing.has(h)) {
+                      return;
+                    }
+                    try {
+                      print(`Adding ${h}`);
+                      rs.add(h);
+                      added += 1;
+                    } catch (e) {
+                      print(`Failed to add ${h}: ${e}`);
+                    }
+                  });
+                  print(`Reconcile complete; added ${added} new members, existing ${existing.size}`);
+                  EOF
+{{- end }}

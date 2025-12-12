@@ -10,7 +10,8 @@ helm install my-mongo charts/mongodb-replicaset
 ## Features
 - StatefulSet with headless and client Services.
 - Post-install/upgrade init Job to run `rs.initiate`.
-- Continuous reconcile Job to auto-add new pods (HPA/manual scale-out).
+- Reconcile Job to add new members (runs as Helm hook).
+- Optional periodic reconcile CronJob for HPA/manual scale changes.
 - Pre-stop removal hook to safely remove members on scale-down/termination.
 - Optional HPA for CPU/memory-based scaling.
 - PDB majority by default when replicas > 1.
@@ -52,6 +53,8 @@ helm uninstall my-mongo
 | autoscaling.targetCPUUtilizationPercentage | CPU target | `70` |
 | autoscaling.targetMemoryUtilizationPercentage | Memory target | `null` |
 | reconcile.enabled | Enable reconciliation job | `true` |
+| reconcile.hook | Run reconcile as Helm hook | `true` |
+| reconcile.schedule | Cron schedule for periodic reconcile (empty disables) | `"*/5 * * * *"` |
 | reconcile.ttlSecondsAfterFinished | TTL for reconcile job objects | `600` |
 | reconcile.maxReplicaSearch | Max ordinals to consider | `null` (uses HPA max or replicaCount) |
 | removeOnTerminate.enabled | Remove member on termination | `true` |
@@ -67,7 +70,8 @@ helm uninstall my-mongo
 
 ## Notes and Operational Guidance
 - Always set `auth.rootPassword` or provide an `auth.existingSecret` for production.
-- For scale-out, the reconcile job will add new members automatically.
+- After scale-out via Helm, the reconcile hook adds new members automatically.
+- If pods are added by HPA or `kubectl scale` without a Helm upgrade, the periodic reconcile CronJob (if `reconcile.schedule` is set) will add them within the schedule interval.
 - For scale-down/eviction, the preStop hook will step down if primary and call `rs.remove` to avoid stale members.
 - Keep majority available during maintenance; PDB uses majority by default when replicas > 1.
 - Persistence: PVCs remain unless your storage class is reclaiming; ensure you understand your storage policy.
