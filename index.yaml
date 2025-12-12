@@ -71,6 +71,25 @@ entries:
   mongodb-replicaset:
   - apiVersion: v2
     appVersion: "7.0"
+    created: "2025-12-12T11:23:20.346106025Z"
+    description: A MongoDB replica set with configurable member count and post-deploy
+      initialization job
+    digest: 215919dbdaf91efddfaf9d6b9fd02e22d65a53ffbc27dba3dbcf21a3cab0b8cf
+    home: https://github.com/langazov/helm-charts
+    icon: https://raw.githubusercontent.com/langazov/helm-charts/main/charts/mongodb-replicaset/icon.svg
+    keywords:
+    - mongodb
+    - replicaset
+    - database
+    name: mongodb-replicaset
+    sources:
+    - https://github.com/langazov/helm-charts
+    type: application
+    urls:
+    - https://github.com/langazov/helm-charts/releases/download/mongodb-replicaset-0.1.5/mongodb-replicaset-0.1.5.tgz
+    version: 0.1.5
+  - apiVersion: v2
+    appVersion: "7.0"
     created: "2025-12-12T11:10:35.30235353Z"
     description: A MongoDB replica set with configurable member count and post-deploy
       initialization job
@@ -219,4 +238,4 @@ entries:
     urls:
     - https://github.com/langazov/helm-charts/releases/download/wordpress-0.1.0/wordpress-0.1.0.tgz
     version: 0.1.0
-generated: "2025-12-12T11:10:35.302371945Z"
+generated: "2025-12-12T11:23:20.346130681Z"
