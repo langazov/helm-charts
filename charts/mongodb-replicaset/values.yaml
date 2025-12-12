@@ -1,0 +1,118 @@
+# Default values for mongodb-replicaset.
+
+replicaCount: 3
+
+image:
+  repository: mongo
+  tag: "7.0"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+auth:
+  rootUsername: root
+  # Leave empty to auto-generate
+  rootPassword: ""
+  existingSecret: ""
+  rootPasswordKey: mongodb-root-password
+  # Internal keyfile for replica set authentication between members
+  keyFile: ""
+  existingKeySecret: ""
+  keyFileKey: mongodb-keyfile
+
+service:
+  type: ClusterIP
+  port: 27017
+
+autoscaling:
+  enabled: false
+  minReplicas: 3
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: null
+
+reconcile:
+  enabled: true
+  hook: false
+  ttlSecondsAfterFinished: 600
+  # How many StatefulSet ordinals to check for DNS presence; defaults to autoscaling.maxReplicas, then replicaCount.
+  maxReplicaSearch: null
+
+replicaSet:
+  name: rs0
+  initTimeoutSeconds: 300
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: null
+
+podAnnotations: {}
+
+podSecurityContext:
+  fsGroup: 999
+
+securityContext:
+  runAsUser: 999
+  runAsGroup: 999
+  runAsNonRoot: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+persistence:
+  enabled: true
+  accessMode: ReadWriteOnce
+  size: 10Gi
+  storageClass: ""
+  existingClaim: ""
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+removeOnTerminate:
+  enabled: true
+  stepDownSeconds: 30
+  maxAttempts: 10
+  retryIntervalSeconds: 3
+
+livenessProbe:
+  enabled: true
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  successThreshold: 1
+  failureThreshold: 5
+
+readinessProbe:
+  enabled: true
+  initialDelaySeconds: 15
+  periodSeconds: 10
+  timeoutSeconds: 5
+  successThreshold: 1
+  failureThreshold: 5
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+updateStrategy:
+  type: RollingUpdate
+
+podManagementPolicy: OrderedReady
+
+terminationGracePeriodSeconds: 60

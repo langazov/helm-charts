@@ -1,0 +1,26 @@
+Thank you for deploying {{ include "mongodb-replicaset.fullname" . }}!
+
+Primary endpoint:
+  mongodb://{{ .Values.auth.rootUsername }}:{{ include "mongodb-replicaset.rootPassword" . }}@{{ include "mongodb-replicaset.fullname" . }}-0.{{ include "mongodb-replicaset.headlessServiceName" . }}.{{ .Release.Namespace }}.svc.cluster.local:27017/admin?replicaSet={{ .Values.replicaSet.name }}
+
+Replica set DNS members:
+{{- $full := include "mongodb-replicaset.fullname" . -}}
+{{- $headless := include "mongodb-replicaset.headlessServiceName" . -}}
+{{- $ns := .Release.Namespace -}}
+{{- $count := int .Values.replicaCount -}}
+{{- if .Values.autoscaling.enabled }}
+{{- $count = int .Values.autoscaling.minReplicas -}}
+{{- end }}
+{{- range $i, $_ := until $count }}
+  - {{ printf "%s-%d.%s.%s.svc.cluster.local:27017" $full $i $headless $ns }}
+{{- end }}
+
+Services:
+  Headless: {{ include "mongodb-replicaset.headlessServiceName" . }}
+  Client:   {{ include "mongodb-replicaset.fullname" . }}:{{ .Values.service.port }}
+
+Credentials:
+  Username: {{ .Values.auth.rootUsername }}
+  Password: {{ include "mongodb-replicaset.rootPassword" . }}
+
+Note: If autoscaling is enabled, new members will be auto-added by the reconcile job. PreStop hooks remove members on scale-down to avoid stale replica set entries.

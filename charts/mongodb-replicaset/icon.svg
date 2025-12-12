@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title>MongoDB Replica Set</title>
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#13aa52"/>
+      <stop offset="100%" stop-color="#0f8a3a"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="112" height="112" rx="20" fill="#0b2f1f" />
+  <path d="M64 18c-12 20-12 38 0 54 12-16 12-34 0-54z" fill="#7fcf8f"/>
+  <path d="M64 18c-6 14-8 27-6 40 2 14 7 24 6 52 9-30 11-45 7-64-2-10-4-17-7-28z" fill="url(#g)"/>
+  <circle cx="42" cy="86" r="8" fill="#7fcf8f"/>
+  <circle cx="86" cy="86" r="8" fill="#7fcf8f"/>
+  <path d="M42 86c10-6 34-6 44 0" stroke="#7fcf8f" stroke-width="4" fill="none" stroke-linecap="round"/>
+</svg>
