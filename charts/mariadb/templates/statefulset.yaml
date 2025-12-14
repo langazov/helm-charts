@@ -85,7 +85,8 @@ spec:
           {{- toYaml .Values.resources | nindent 12 }}
         volumeMounts:
         - name: data
-          mountPath: /var/lib/mysql
+          mountPath: {{ .Values.persistence.mountPath }}
+          subPath: {{ .Values.persistence.dataSubDir }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
