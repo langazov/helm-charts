@@ -2,7 +2,7 @@ apiVersion: v2
 name: mariadb
 description: A Helm chart for MariaDB LTS with random password generation
 type: application
-version: 0.1.0
+version: 0.1.1
 appVersion: "lts"
 keywords:
   - mariadb
