@@ -27,6 +27,27 @@ entries:
   mariadb:
   - apiVersion: v2
     appVersion: lts
+    created: "2025-12-14T23:56:42.172944701Z"
+    description: A Helm chart for MariaDB LTS with random password generation
+    digest: bd70739ed285d8e98eb41cbc8b3f5f1b9b0bb6343f70fad109be4bf8e70d48ba
+    home: https://github.com/langazov/helm-charts
+    keywords:
+    - mariadb
+    - mysql
+    - database
+    - sql
+    maintainers:
+    - email: langazov@gmail.com
+      name: langazov
+    name: mariadb
+    sources:
+    - https://github.com/langazov/helm-charts
+    type: application
+    urls:
+    - https://github.com/langazov/helm-charts/releases/download/mariadb-0.1.1/mariadb-0.1.1.tgz
+    version: 0.1.1
+  - apiVersion: v2
+    appVersion: lts
     created: "2025-10-07T21:45:28.033396322Z"
     description: A Helm chart for MariaDB LTS with random password generation
     digest: 270c889b02c9ec66f6bc9c90aec32d741e4a6decd59799d1f30453aae9277b0c
@@ -238,4 +259,4 @@ entries:
     urls:
     - https://github.com/langazov/helm-charts/releases/download/wordpress-0.1.0/wordpress-0.1.0.tgz
     version: 0.1.0
-generated: "2025-12-12T11:23:20.346130681Z"
+generated: "2025-12-14T23:56:42.172963156Z"
