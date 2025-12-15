@@ -60,9 +60,9 @@ persistence:
   size: 8Gi
   # existingClaim: ""
   # Volume mount path in the container
-  mountPath: /var/lib/mysql/data
+  mountPath: /var/lib/mysql
   # Data subdirectory within the mount path
-  dataSubDir: data
+  dataSubDir: ""
 
 resources:
   limits:

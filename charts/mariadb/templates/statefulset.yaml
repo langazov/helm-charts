@@ -86,7 +86,9 @@ spec:
         volumeMounts:
         - name: data
           mountPath: {{ .Values.persistence.mountPath }}
+          {{- if .Values.persistence.dataSubDir }}
           subPath: {{ .Values.persistence.dataSubDir }}
+          {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
