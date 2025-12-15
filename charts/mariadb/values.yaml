@@ -62,7 +62,7 @@ persistence:
   # Volume mount path in the container
   mountPath: /var/lib/mysql
   # Data subdirectory within the mount path
-  dataSubDir: ""
+  dataSubDir: data
 
 resources:
   limits:
