@@ -66,7 +66,12 @@ Return the MariaDB root password
 {{- if .Values.auth.rootPassword }}
 {{- .Values.auth.rootPassword }}
 {{- else }}
+{{- $secret := lookup "v1" "Secret" .Release.Namespace (include "mariadb.fullname" .) }}
+{{- if $secret }}
+{{- index $secret.data "mariadb-root-password" | b64dec }}
+{{- else }}
 {{- randAlphaNum 16 }}
+{{- end }}
 {{- end }}
 {{- end }}
 
@@ -77,6 +82,11 @@ Return the MariaDB user password
 {{- if .Values.auth.password }}
 {{- .Values.auth.password }}
 {{- else }}
+{{- $secret := lookup "v1" "Secret" .Release.Namespace (include "mariadb.fullname" .) }}
+{{- if $secret }}
+{{- index $secret.data "mariadb-password" | b64dec }}
+{{- else }}
 {{- randAlphaNum 16 }}
+{{- end }}
 {{- end }}
 {{- end }}
