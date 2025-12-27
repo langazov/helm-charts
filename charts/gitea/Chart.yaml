@@ -2,7 +2,7 @@ apiVersion: v2
 name: gitea
 description: A Helm chart for deploying Gitea with MariaDB - a lightweight, self-hosted Git service
 type: application
-version: 0.2.0
+version: 0.2.1
 appVersion: "1.21.11"
 keywords:
   - gitea

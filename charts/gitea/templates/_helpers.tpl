@@ -66,7 +66,12 @@ Generate admin password
 {{- if .Values.gitea.admin.password }}
 {{- .Values.gitea.admin.password }}
 {{- else }}
+{{- $secret := lookup "v1" "Secret" .Release.Namespace (printf "%s-secrets" (include "gitea.fullname" .)) }}
+{{- if $secret }}
+{{- index $secret.data "admin-password" | b64dec }}
+{{- else }}
 {{- randAlphaNum 32 }}
+{{- end }}
 {{- end }}
 {{- end }}
 
@@ -77,7 +82,12 @@ Generate secret key
 {{- if .Values.gitea.security.secretKey }}
 {{- .Values.gitea.security.secretKey }}
 {{- else }}
+{{- $secret := lookup "v1" "Secret" .Release.Namespace (printf "%s-secrets" (include "gitea.fullname" .)) }}
+{{- if $secret }}
+{{- index $secret.data "secret-key" | b64dec }}
+{{- else }}
 {{- randAlphaNum 32 }}
+{{- end }}
 {{- end }}
 {{- end }}
 
@@ -88,7 +98,12 @@ Generate internal token URI
 {{- if .Values.gitea.security.internalTokenUri }}
 {{- .Values.gitea.security.internalTokenUri }}
 {{- else }}
+{{- $secret := lookup "v1" "Secret" .Release.Namespace (printf "%s-secrets" (include "gitea.fullname" .)) }}
+{{- if $secret }}
+{{- index $secret.data "internal-token-uri" | b64dec }}
+{{- else }}
 {{- randAlphaNum 32 }}
+{{- end }}
 {{- end }}
 {{- end }}
 
@@ -99,7 +114,12 @@ Generate MariaDB root password
 {{- if .Values.secrets.mariadb.rootPassword }}
 {{- .Values.secrets.mariadb.rootPassword }}
 {{- else }}
+{{- $secret := lookup "v1" "Secret" .Release.Namespace (printf "%s-secrets" (include "gitea.fullname" .)) }}
+{{- if $secret }}
+{{- index $secret.data "mariadb-root-password" | b64dec }}
+{{- else }}
 {{- randAlphaNum 32 }}
+{{- end }}
 {{- end }}
 {{- end }}
 
@@ -110,7 +130,12 @@ Generate MariaDB user password
 {{- if .Values.secrets.mariadb.userPassword }}
 {{- .Values.secrets.mariadb.userPassword }}
 {{- else }}
+{{- $secret := lookup "v1" "Secret" .Release.Namespace (printf "%s-secrets" (include "gitea.fullname" .)) }}
+{{- if $secret }}
+{{- index $secret.data "mariadb-user-password" | b64dec }}
+{{- else }}
 {{- randAlphaNum 32 }}
+{{- end }}
 {{- end }}
 {{- end }}
 
@@ -121,6 +146,11 @@ Generate PostgreSQL password
 {{- if .Values.secrets.postgres.password }}
 {{- .Values.secrets.postgres.password }}
 {{- else }}
+{{- $secret := lookup "v1" "Secret" .Release.Namespace (printf "%s-secrets" (include "gitea.fullname" .)) }}
+{{- if $secret }}
+{{- index $secret.data "postgres-password" | b64dec }}
+{{- else }}
 {{- randAlphaNum 32 }}
+{{- end }}
 {{- end }}
 {{- end }}
