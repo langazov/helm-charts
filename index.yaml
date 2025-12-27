@@ -3,6 +3,29 @@ entries:
   gitea:
   - apiVersion: v2
     appVersion: 1.21.11
+    created: "2025-12-27T09:51:07.012388317Z"
+    description: A Helm chart for deploying Gitea with MariaDB - a lightweight, self-hosted
+      Git service
+    digest: 48bc98dafa7cb15876fbac63fb69acb46ccc7d1f56e55aff8854236d368d8243
+    home: https://gitea.io
+    keywords:
+    - gitea
+    - git
+    - scm
+    - version-control
+    - mariadb
+    maintainers:
+    - email: your.email@example.com
+      name: Your Name
+    name: gitea
+    sources:
+    - https://github.com/go-gitea/gitea
+    type: application
+    urls:
+    - https://github.com/langazov/helm-charts/releases/download/gitea-0.2.1/gitea-0.2.1.tgz
+    version: 0.2.1
+  - apiVersion: v2
+    appVersion: 1.21.11
     created: "2025-11-16T10:01:47.936882255Z"
     description: A Helm chart for deploying Gitea with MariaDB - a lightweight, self-hosted
       Git service
@@ -131,6 +154,27 @@ entries:
     - https://github.com/langazov/helm-charts/releases/download/mariadb-0.1.0/mariadb-0.1.0.tgz
     version: 0.1.0
   mongodb:
+  - apiVersion: v2
+    appVersion: "8.0"
+    created: "2025-12-27T09:51:07.232060739Z"
+    description: A Helm chart for MongoDB with authentication and random password
+      generation
+    digest: 1311968a9a11b86986c63c84d446d2d80acd668f6a56cb44304547428a9c9b24
+    home: https://github.com/langazov/helm-charts
+    keywords:
+    - mongodb
+    - database
+    - nosql
+    maintainers:
+    - email: langazov@gmail.com
+      name: langazov
+    name: mongodb
+    sources:
+    - https://github.com/langazov/helm-charts
+    type: application
+    urls:
+    - https://github.com/langazov/helm-charts/releases/download/mongodb-0.1.1/mongodb-0.1.1.tgz
+    version: 0.1.1
   - apiVersion: v2
     appVersion: "8.0"
     created: "2025-11-29T14:09:33.924601185Z"
@@ -339,4 +383,4 @@ entries:
     urls:
     - https://github.com/langazov/helm-charts/releases/download/wordpress-0.1.0/wordpress-0.1.0.tgz
     version: 0.1.0
-generated: "2025-12-27T09:36:43.551270455Z"
+generated: "2025-12-27T09:51:07.232092699Z"
