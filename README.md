@@ -23,9 +23,54 @@ Install a chart:
 helm install my-release my-charts/webapp
 ```
 
+Install with custom values:
+
+```bash
+helm install my-release my-charts/mariadb --set persistence.size=10Gi
+```
+
+Upgrade an existing release:
+
+```bash
+helm upgrade my-release my-charts/mongodb
+```
+
 ## Available Charts
 
-- **webapp**: Example web application chart
+### Applications
+
+- **gitea** (v0.2.1): A lightweight, self-hosted Git service with MariaDB backend
+  - App Version: 1.21.11
+  - Features: Version control, SCM, integrated MariaDB
+
+- **webapp** (v0.1.0): Example web application chart for demonstration
+  - App Version: 1.16.0
+
+- **wordpress** (v0.1.1): WordPress CMS with MariaDB database
+  - App Version: latest
+  - Features: Blog, CMS platform
+
+- **phpmyadmin** (v0.1.0): Web-based MySQL/MariaDB administration interface
+  - App Version: 5.2.1
+  - Features: Database management, admin interface
+
+### Databases
+
+- **mariadb** (v0.1.4): MariaDB LTS with automatic random password generation
+  - App Version: lts
+  - Features: MySQL-compatible database, secure password management
+
+- **mongodb** (v0.1.1): MongoDB with authentication and random password generation
+  - App Version: 8.0
+  - Features: NoSQL database, secure authentication
+
+- **mongodb-replicaset** (v0.1.5): MongoDB replica set with configurable member count
+  - App Version: 7.0
+  - Features: High availability, post-deploy initialization job, scalable replica set
+
+- **redis** (v0.1.1): Redis in-memory data store
+  - App Version: 8.2.2
+  - Features: Caching, key-value store, Alpine-based image
 
 ## Development
 
@@ -92,7 +137,14 @@ Charts are automatically released when you:
 ├── .github/
 │   └── workflows/          # GitHub Actions workflows
 ├── charts/                 # Helm charts
-│   └── webapp/            # Example chart
+│   ├── gitea/             # Gitea Git service chart
+│   ├── mariadb/           # MariaDB database chart
+│   ├── mongodb/           # MongoDB database chart
+│   ├── mongodb-replicaset/ # MongoDB replica set chart
+│   ├── phpmyadmin/        # phpMyAdmin admin interface chart
+│   ├── redis/             # Redis cache chart
+│   ├── webapp/            # Example web application chart
+│   └── wordpress/         # WordPress CMS chart
 ├── docs/                  # Generated packages (GitHub Pages)
 ├── .ct.yaml              # Chart testing configuration
 ├── Makefile              # Local development commands
