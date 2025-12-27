@@ -2,7 +2,7 @@ apiVersion: v2
 name: mongodb
 description: A Helm chart for MongoDB with authentication and random password generation
 type: application
-version: 0.1.0
+version: 0.1.1
 appVersion: "8.0"
 keywords:
   - mongodb

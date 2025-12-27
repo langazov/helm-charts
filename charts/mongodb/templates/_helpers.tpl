@@ -66,7 +66,12 @@ Return the MongoDB root password
 {{- if .Values.auth.rootPassword }}
 {{- .Values.auth.rootPassword }}
 {{- else }}
+{{- $secret := lookup "v1" "Secret" .Release.Namespace (include "mongodb.fullname" .) }}
+{{- if $secret }}
+{{- index $secret.data "mongodb-root-password" | b64dec }}
+{{- else }}
 {{- randAlphaNum 16 }}
+{{- end }}
 {{- end }}
 {{- end }}
 
@@ -77,6 +82,11 @@ Return the MongoDB user password
 {{- if .Values.auth.password }}
 {{- .Values.auth.password }}
 {{- else }}
+{{- $secret := lookup "v1" "Secret" .Release.Namespace (include "mongodb.fullname" .) }}
+{{- if $secret }}
+{{- index $secret.data "mongodb-password" | b64dec }}
+{{- else }}
 {{- randAlphaNum 16 }}
+{{- end }}
 {{- end }}
 {{- end }}
