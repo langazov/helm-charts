@@ -67,11 +67,12 @@ spec:
                   BACKUP_DIR="/backup/$(date +%Y%m%d-%H%M%S)"
                   mkdir -p "$BACKUP_DIR"
                   echo "[backup] Starting mariabackup to $BACKUP_DIR"
+                  DB_HOST="{{ include "mariadb-galera-ha.fullname" . }}-0.{{ include "mariadb-galera-ha.headlessServiceName" . }}.${POD_NAMESPACE}.svc.cluster.local"
                   mariabackup --backup \
                     --target-dir="$BACKUP_DIR" \
                     --user=root \
                     --password="${MARIADB_ROOT_PASSWORD}" \
-                    --host=127.0.0.1 \
+                    --host="${DB_HOST}" \
                     --port=3306
                   echo "[backup] Preparing backup..."
                   mariabackup --prepare --target-dir="$BACKUP_DIR"

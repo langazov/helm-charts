@@ -135,6 +135,14 @@ data:
       BEST_SEQNO=-2
       SAFE_BOOTSTRAP_NODE=-1
 
+      # Cleanup function: remove any reader pods created during this loop
+      cleanup_reader_pods() {
+        for j in $(seq 0 $((CLUSTER_SIZE - 1))); do
+          kubectl delete pod "galera-recovery-reader-${j}" -n "$NAMESPACE" --ignore-not-found=true 2>/dev/null || true
+        done
+      }
+      trap cleanup_reader_pods EXIT
+
       for i in $(seq 0 $((CLUSTER_SIZE - 1))); do
         PVC_NAME="data-${STATEFULSET_NAME}-${i}"
 
@@ -172,7 +180,11 @@ data:
           claimName: ${PVC_NAME}
     PODSPEC
 
-        kubectl wait pod "$TEMP_POD" -n "$NAMESPACE" --for=condition=Succeeded --timeout=60s 2>/dev/null || true
+        if ! kubectl wait pod "$TEMP_POD" -n "$NAMESPACE" --for=condition=Succeeded --timeout=60s 2>/dev/null; then
+          echo "[recover] Timed out waiting for reader pod $TEMP_POD; skipping pod $i"
+          kubectl delete pod "$TEMP_POD" -n "$NAMESPACE" --ignore-not-found=true 2>/dev/null || true
+          continue
+        fi
 
         GRASTATE=$(kubectl logs "$TEMP_POD" -n "$NAMESPACE" 2>/dev/null || echo "")
         kubectl delete pod "$TEMP_POD" -n "$NAMESPACE" --ignore-not-found=true 2>/dev/null || true
@@ -225,8 +237,10 @@ data:
       if [ "$CURRENT_REPLICAS" -gt 0 ]; then
         kubectl scale statefulset "$STATEFULSET_NAME" -n "$NAMESPACE" --replicas=0
         echo "[recover] Waiting for pods to terminate..."
-        kubectl wait pod -l "app.kubernetes.io/name={{ include "mariadb-galera-ha.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" \
-          -n "$NAMESPACE" --for=delete --timeout=120s 2>/dev/null || true
+        if ! kubectl wait pod -l "app.kubernetes.io/name={{ include "mariadb-galera-ha.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" \
+          -n "$NAMESPACE" --for=delete --timeout=180s 2>/dev/null; then
+          echo "[recover] WARNING: Some pods did not terminate within timeout; proceeding anyway"
+        fi
       fi
 
       kubectl scale statefulset "$STATEFULSET_NAME" -n "$NAMESPACE" --replicas="${CLUSTER_SIZE}"
