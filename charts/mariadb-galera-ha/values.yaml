@@ -110,7 +110,7 @@ recovery:
   ttlSecondsAfterFinished: 600
   image:
     repository: bitnami/kubectl
-    tag: "latest"
+    tag: "1.31"
     pullPolicy: IfNotPresent
 
 backup:
@@ -121,6 +121,8 @@ backup:
     endpoint: ""
     accessKey: ""
     secretKey: ""
+    # If set, use this existing secret for S3 credentials instead of accessKey/secretKey
+    existingSecret: ""
   image:
     repository: mariadb
     tag: "11.4"

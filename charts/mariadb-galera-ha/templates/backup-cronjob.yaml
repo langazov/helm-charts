@@ -41,10 +41,23 @@ spec:
                   value: {{ .Values.backup.s3.bucket | quote }}
                 - name: S3_ENDPOINT
                   value: {{ .Values.backup.s3.endpoint | quote }}
+                {{- if .Values.backup.s3.existingSecret }}
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.backup.s3.existingSecret }}
+                      key: access-key
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.backup.s3.existingSecret }}
+                      key: secret-key
+                {{- else }}
                 - name: AWS_ACCESS_KEY_ID
                   value: {{ .Values.backup.s3.accessKey | quote }}
                 - name: AWS_SECRET_ACCESS_KEY
                   value: {{ .Values.backup.s3.secretKey | quote }}
+                {{- end }}
                 {{- end }}
               command:
                 - /bin/bash
@@ -58,8 +71,8 @@ spec:
                     --target-dir="$BACKUP_DIR" \
                     --user=root \
                     --password="${MARIADB_ROOT_PASSWORD}" \
-                    --host=localhost \
-                    --socket=/run/mysqld/mysqld.sock
+                    --host=127.0.0.1 \
+                    --port=3306
                   echo "[backup] Preparing backup..."
                   mariabackup --prepare --target-dir="$BACKUP_DIR"
                   echo "[backup] Backup complete: $BACKUP_DIR"

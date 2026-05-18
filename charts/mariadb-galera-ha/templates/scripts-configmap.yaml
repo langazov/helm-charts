@@ -225,7 +225,7 @@ data:
       if [ "$CURRENT_REPLICAS" -gt 0 ]; then
         kubectl scale statefulset "$STATEFULSET_NAME" -n "$NAMESPACE" --replicas=0
         echo "[recover] Waiting for pods to terminate..."
-        kubectl wait pod -l "app.kubernetes.io/name={{ include "mariadb-galera-ha.name" . }}" \
+        kubectl wait pod -l "app.kubernetes.io/name={{ include "mariadb-galera-ha.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" \
           -n "$NAMESPACE" --for=delete --timeout=120s 2>/dev/null || true
       fi
 
@@ -236,7 +236,7 @@ data:
       kubectl wait pod "$BOOTSTRAP_POD" -n "$NAMESPACE" --for=condition=Ready --timeout=300s 2>/dev/null || true
 
       echo "[recover] Waiting for all nodes..."
-      kubectl wait pod -l "app.kubernetes.io/name={{ include "mariadb-galera-ha.name" . }}" \
+      kubectl wait pod -l "app.kubernetes.io/name={{ include "mariadb-galera-ha.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" \
         -n "$NAMESPACE" --for=condition=Ready --timeout=600s 2>/dev/null || true
 
       kubectl patch configmap "$RECOVERY_CM" -n "$NAMESPACE" \
