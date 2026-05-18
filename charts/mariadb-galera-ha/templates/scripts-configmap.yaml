@@ -1,0 +1,249 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "mariadb-galera-ha.fullname" . }}-scripts
+  labels:
+    {{- include "mariadb-galera-ha.labels" . | nindent 4 }}
+data:
+  entrypoint.sh: |
+    #!/bin/bash
+    set -euo pipefail
+
+    POD_INDEX="${HOSTNAME##*-}"
+    NAMESPACE="${POD_NAMESPACE:-default}"
+    RECOVERY_CM_NAME="{{ include "mariadb-galera-ha.recoveryConfigMapName" . }}"
+    HEADLESS_SVC="{{ include "mariadb-galera-ha.headlessServiceName" . }}.${NAMESPACE}.svc.cluster.local"
+    CLUSTER_SIZE="{{ .Values.replicaCount }}"
+    FULLNAME="{{ include "mariadb-galera-ha.fullname" . }}"
+
+    # Build cluster address from all pod DNS names
+    CLUSTER_ADDR="gcomm://"
+    for i in $(seq 0 $((CLUSTER_SIZE - 1))); do
+      if [ "$i" -gt 0 ]; then CLUSTER_ADDR="${CLUSTER_ADDR},"; fi
+      CLUSTER_ADDR="${CLUSTER_ADDR}${FULLNAME}-${i}.${HEADLESS_SVC}"
+    done
+
+    # Check recovery configmap (requires kubectl in the container)
+    RECOVERY_MODE="normal"
+    BOOTSTRAP_NODE=""
+    if command -v kubectl &>/dev/null; then
+      RECOVERY_MODE=$(kubectl get configmap "$RECOVERY_CM_NAME" -n "$NAMESPACE" -o jsonpath='{.data.mode}' 2>/dev/null || echo "normal")
+      BOOTSTRAP_NODE=$(kubectl get configmap "$RECOVERY_CM_NAME" -n "$NAMESPACE" -o jsonpath='{.data.bootstrapNode}' 2>/dev/null || echo "")
+    fi
+
+    # Determine startup mode
+    USE_BOOTSTRAP=false
+    if [ "$RECOVERY_MODE" = "recovery-in-progress" ] && [ "$BOOTSTRAP_NODE" = "$HOSTNAME" ]; then
+      USE_BOOTSTRAP=true
+      echo "[entrypoint] Recovery bootstrap node: $HOSTNAME"
+    elif [ "$POD_INDEX" = "0" ] && [ ! -f /var/lib/mysql/grastate.dat ]; then
+      USE_BOOTSTRAP=true
+      echo "[entrypoint] Fresh install bootstrap: pod-0"
+    elif [ "$RECOVERY_MODE" = "recovery-in-progress" ] && [ -n "$BOOTSTRAP_NODE" ]; then
+      echo "[entrypoint] Waiting for bootstrap node $BOOTSTRAP_NODE..."
+      for _ in $(seq 1 60); do
+        if mysqladmin ping -h "${BOOTSTRAP_NODE}.${HEADLESS_SVC}" --connect-timeout=5 2>/dev/null; then
+          echo "[entrypoint] Bootstrap node ready"
+          break
+        fi
+        sleep 5
+      done
+    fi
+
+    # Write dynamic wsrep_cluster_address
+    mkdir -p /etc/mysql/conf.d
+    if [ "$USE_BOOTSTRAP" = "true" ]; then
+      printf '[galera]\nwsrep_cluster_address=gcomm://\n' > /etc/mysql/conf.d/wsrep-address.cnf
+      echo "[entrypoint] Using bootstrap cluster address"
+    else
+      printf '[galera]\nwsrep_cluster_address=%s\n' "$CLUSTER_ADDR" > /etc/mysql/conf.d/wsrep-address.cnf
+      echo "[entrypoint] Using cluster address: $CLUSTER_ADDR"
+    fi
+
+    if [ "$USE_BOOTSTRAP" = "true" ] && [ "$RECOVERY_MODE" = "recovery-in-progress" ] && command -v kubectl &>/dev/null; then
+      echo "[entrypoint] Bootstrap initiated, recovery job will finalize"
+    fi
+
+    exec docker-entrypoint.sh mysqld
+
+  recover-galera.sh: |
+    #!/bin/bash
+    set -euo pipefail
+
+    NAMESPACE="${POD_NAMESPACE:-$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace 2>/dev/null || echo default)}"
+    STATEFULSET_NAME="{{ include "mariadb-galera-ha.fullname" . }}"
+    RECOVERY_CM="{{ include "mariadb-galera-ha.recoveryConfigMapName" . }}"
+    CLUSTER_SIZE="{{ .Values.replicaCount }}"
+    HEADLESS_SVC="{{ include "mariadb-galera-ha.headlessServiceName" . }}.${NAMESPACE}.svc.cluster.local"
+
+    echo "[recover] Starting Galera recovery check for $STATEFULSET_NAME in $NAMESPACE"
+    echo "[recover] Cluster size: $CLUSTER_SIZE"
+
+    # Check if cluster is healthy
+    HEALTHY_NODES=0
+    for i in $(seq 0 $((CLUSTER_SIZE - 1))); do
+      POD="${STATEFULSET_NAME}-${i}"
+      if kubectl get pod "$POD" -n "$NAMESPACE" --no-headers 2>/dev/null | grep -q "Running"; then
+        HEALTHY_NODES=$((HEALTHY_NODES + 1))
+      fi
+    done
+
+    echo "[recover] Healthy nodes: $HEALTHY_NODES / $CLUSTER_SIZE"
+
+    # Get current recovery mode
+    CURRENT_MODE=$(kubectl get configmap "$RECOVERY_CM" -n "$NAMESPACE" -o jsonpath='{.data.mode}' 2>/dev/null || echo "normal")
+    echo "[recover] Current recovery mode: $CURRENT_MODE"
+
+    if [ "$CURRENT_MODE" = "manual-required" ]; then
+      echo "[recover] Manual recovery required. Exiting."
+      exit 0
+    fi
+
+    if [ "$HEALTHY_NODES" -eq "$CLUSTER_SIZE" ]; then
+      echo "[recover] All pods running. Checking cluster status..."
+      PRIMARY_COUNT=0
+      for i in $(seq 0 $((CLUSTER_SIZE - 1))); do
+        POD="${STATEFULSET_NAME}-${i}"
+        STATUS=$(kubectl exec "$POD" -n "$NAMESPACE" -- \
+          mysql -u root -p"${MARIADB_ROOT_PASSWORD}" -e "SHOW STATUS LIKE 'wsrep_cluster_status';" 2>/dev/null \
+          | grep wsrep_cluster_status | awk '{print $2}' || echo "unknown")
+        if [ "$STATUS" = "Primary" ]; then
+          PRIMARY_COUNT=$((PRIMARY_COUNT + 1))
+        fi
+      done
+
+      if [ "$PRIMARY_COUNT" -eq "$CLUSTER_SIZE" ]; then
+        echo "[recover] Cluster is healthy (all nodes Primary)."
+        if [ "$CURRENT_MODE" != "normal" ]; then
+          kubectl patch configmap "$RECOVERY_CM" -n "$NAMESPACE" \
+            --type merge -p "{\"data\":{\"mode\":\"normal\",\"bootstrapNode\":\"\",\"lastRecoveryTime\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}}"
+        fi
+        exit 0
+      fi
+    fi
+
+    if [ "$HEALTHY_NODES" -eq 0 ]; then
+      echo "[recover] No healthy pods found. Initiating crash recovery..."
+
+      # Acquire lock
+      kubectl patch configmap "$RECOVERY_CM" -n "$NAMESPACE" \
+        --type merge -p "{\"data\":{\"mode\":\"recovery-needed\",\"lastRecoveryTime\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}}"
+
+      echo "[recover] Reading grastate.dat from all PVCs to find safest bootstrap node..."
+
+      BEST_NODE=-1
+      BEST_SEQNO=-2
+      SAFE_BOOTSTRAP_NODE=-1
+
+      for i in $(seq 0 $((CLUSTER_SIZE - 1))); do
+        PVC_NAME="data-${STATEFULSET_NAME}-${i}"
+
+        if ! kubectl get pvc "$PVC_NAME" -n "$NAMESPACE" &>/dev/null; then
+          echo "[recover] PVC $PVC_NAME not found, skipping"
+          continue
+        fi
+
+        TEMP_POD="galera-recovery-reader-${i}"
+        kubectl delete pod "$TEMP_POD" -n "$NAMESPACE" --ignore-not-found=true 2>/dev/null || true
+
+        SA_NAME=$(kubectl get statefulset "$STATEFULSET_NAME" -n "$NAMESPACE" -o jsonpath='{.spec.template.spec.serviceAccountName}' 2>/dev/null || echo "default")
+
+        kubectl apply -n "$NAMESPACE" -f - <<PODSPEC
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: ${TEMP_POD}
+      namespace: ${NAMESPACE}
+      labels:
+        app.kubernetes.io/component: galera-recovery
+    spec:
+      restartPolicy: Never
+      serviceAccountName: ${SA_NAME}
+      containers:
+      - name: reader
+        image: busybox:1.36
+        command: ["cat", "/recovery/grastate.dat"]
+        volumeMounts:
+        - name: data
+          mountPath: /recovery
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: ${PVC_NAME}
+    PODSPEC
+
+        kubectl wait pod "$TEMP_POD" -n "$NAMESPACE" --for=condition=Succeeded --timeout=60s 2>/dev/null || true
+
+        GRASTATE=$(kubectl logs "$TEMP_POD" -n "$NAMESPACE" 2>/dev/null || echo "")
+        kubectl delete pod "$TEMP_POD" -n "$NAMESPACE" --ignore-not-found=true 2>/dev/null || true
+
+        if [ -z "$GRASTATE" ]; then
+          echo "[recover] Could not read grastate.dat for pod $i"
+          continue
+        fi
+
+        SEQNO=$(echo "$GRASTATE" | grep "^seqno:" | awk '{print $2}' || echo "-1")
+        SAFE=$(echo "$GRASTATE" | grep "^safe_to_bootstrap:" | awk '{print $2}' || echo "0")
+        UUID=$(echo "$GRASTATE" | grep "^uuid:" | awk '{print $2}' || echo "")
+
+        echo "[recover] Pod $i: seqno=$SEQNO safe_to_bootstrap=$SAFE uuid=$UUID"
+
+        if [ "$SAFE" = "1" ]; then
+          if [ "$SAFE_BOOTSTRAP_NODE" -eq -1 ] || [ "$SEQNO" -gt "$BEST_SEQNO" ]; then
+            SAFE_BOOTSTRAP_NODE=$i
+            BEST_SEQNO=$SEQNO
+            BEST_NODE=$i
+          fi
+        elif [ "$SEQNO" -gt "$BEST_SEQNO" ] && [ "$SAFE_BOOTSTRAP_NODE" -eq -1 ]; then
+          BEST_NODE=$i
+          BEST_SEQNO=$SEQNO
+        fi
+      done
+
+      if [ "$BEST_NODE" -eq -1 ]; then
+        echo "[recover] ERROR: Cannot determine safe bootstrap node. Manual recovery required."
+        kubectl patch configmap "$RECOVERY_CM" -n "$NAMESPACE" \
+          --type merge -p "{\"data\":{\"mode\":\"manual-required\",\"lastRecoveryTime\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}}"
+        exit 1
+      fi
+
+      if [ "$SAFE_BOOTSTRAP_NODE" -ne -1 ]; then
+        BOOTSTRAP_POD="${STATEFULSET_NAME}-${SAFE_BOOTSTRAP_NODE}"
+        echo "[recover] Selected safe_to_bootstrap node: $BOOTSTRAP_POD (seqno=$BEST_SEQNO)"
+      else
+        BOOTSTRAP_POD="${STATEFULSET_NAME}-${BEST_NODE}"
+        echo "[recover] Selected highest seqno node: $BOOTSTRAP_POD (seqno=$BEST_SEQNO)"
+      fi
+
+      kubectl patch configmap "$RECOVERY_CM" -n "$NAMESPACE" \
+        --type merge -p "{\"data\":{\"mode\":\"recovery-in-progress\",\"bootstrapNode\":\"${BOOTSTRAP_POD}\",\"bootstrapGeneration\":\"$(date +%s)\",\"lastRecoveryTime\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}}"
+
+      echo "[recover] Recovery configmap updated. Bootstrap node: $BOOTSTRAP_POD"
+      echo "[recover] Scaling up StatefulSet to trigger pod creation..."
+
+      CURRENT_REPLICAS=$(kubectl get statefulset "$STATEFULSET_NAME" -n "$NAMESPACE" -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "0")
+      if [ "$CURRENT_REPLICAS" -gt 0 ]; then
+        kubectl scale statefulset "$STATEFULSET_NAME" -n "$NAMESPACE" --replicas=0
+        echo "[recover] Waiting for pods to terminate..."
+        kubectl wait pod -l "app.kubernetes.io/name={{ include "mariadb-galera-ha.name" . }}" \
+          -n "$NAMESPACE" --for=delete --timeout=120s 2>/dev/null || true
+      fi
+
+      kubectl scale statefulset "$STATEFULSET_NAME" -n "$NAMESPACE" --replicas="${CLUSTER_SIZE}"
+      echo "[recover] StatefulSet scaled up to $CLUSTER_SIZE replicas"
+
+      echo "[recover] Waiting for bootstrap node $BOOTSTRAP_POD..."
+      kubectl wait pod "$BOOTSTRAP_POD" -n "$NAMESPACE" --for=condition=Ready --timeout=300s 2>/dev/null || true
+
+      echo "[recover] Waiting for all nodes..."
+      kubectl wait pod -l "app.kubernetes.io/name={{ include "mariadb-galera-ha.name" . }}" \
+        -n "$NAMESPACE" --for=condition=Ready --timeout=600s 2>/dev/null || true
+
+      kubectl patch configmap "$RECOVERY_CM" -n "$NAMESPACE" \
+        --type merge -p "{\"data\":{\"mode\":\"normal\",\"lastRecoveryTime\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}}"
+
+      echo "[recover] Recovery complete!"
+    else
+      echo "[recover] $HEALTHY_NODES of $CLUSTER_SIZE pods running. Cluster may be degraded but not crashed."
+      echo "[recover] Monitoring cluster health. No automatic recovery needed yet."
+    fi

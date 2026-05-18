@@ -1,0 +1,49 @@
+MariaDB Galera HA cluster has been deployed!
+
+Cluster: {{ include "mariadb-galera-ha.fullname" . }}
+Namespace: {{ .Release.Namespace }}
+Replicas: {{ .Values.replicaCount }}
+
+** Get root password **
+
+  export MARIADB_ROOT_PASSWORD=$(kubectl get secret --namespace {{ .Release.Namespace }} {{ include "mariadb-galera-ha.secretName" . }} -o jsonpath="{.data.mariadb-root-password}" | base64 --decode)
+
+** Connect to the cluster **
+
+  kubectl run mariadb-client --rm --tty -i --restart='Never' \
+    --image mariadb:{{ .Values.image.tag }} \
+    --env MYSQL_ROOT_PASSWORD=$MARIADB_ROOT_PASSWORD \
+    --command -- mysql -h {{ include "mariadb-galera-ha.fullname" . }} -u root -p$MYSQL_ROOT_PASSWORD
+
+** Check Galera cluster status **
+
+  kubectl exec -it {{ include "mariadb-galera-ha.fullname" . }}-0 \
+    --namespace {{ .Release.Namespace }} -- \
+    mysql -u root -p"$MARIADB_ROOT_PASSWORD" -e "SHOW STATUS LIKE 'wsrep%';"
+
+** Check cluster size **
+
+  kubectl exec -it {{ include "mariadb-galera-ha.fullname" . }}-0 \
+    --namespace {{ .Release.Namespace }} -- \
+    mysql -u root -p"$MARIADB_ROOT_PASSWORD" -e "SHOW STATUS LIKE 'wsrep_cluster_size';"
+
+** Recovery mode **
+
+  If the cluster fails to start, check the recovery configmap:
+
+  kubectl get configmap {{ include "mariadb-galera-ha.recoveryConfigMapName" . }} \
+    --namespace {{ .Release.Namespace }} -o yaml
+
+  If mode is "manual-required", you need to manually bootstrap the cluster by
+  editing the configmap and setting safe_to_bootstrap=1 in the grastate.dat
+  of the node with the highest seqno.
+
+** Headless service (for pod DNS) **
+
+  {{ include "mariadb-galera-ha.headlessServiceName" . }}.{{ .Release.Namespace }}.svc.cluster.local
+
+** Individual pod DNS **
+
+  {{- range $i := until (.Values.replicaCount | int) }}
+  {{ include "mariadb-galera-ha.fullname" $ }}-{{ $i }}.{{ include "mariadb-galera-ha.headlessServiceName" $ }}.{{ $.Release.Namespace }}.svc.cluster.local
+  {{- end }}

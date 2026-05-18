@@ -1,0 +1,265 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "mariadb-galera-ha.fullname" . }}
+  labels:
+    {{- include "mariadb-galera-ha.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "mariadb-galera-ha.headlessServiceName" . }}
+  replicas: {{ .Values.replicaCount }}
+  podManagementPolicy: {{ .Values.podManagementPolicy }}
+  updateStrategy:
+    {{- toYaml .Values.updateStrategy | nindent 4 }}
+  selector:
+    matchLabels:
+      {{- include "mariadb-galera-ha.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: mariadb-galera
+  template:
+    metadata:
+      labels:
+        {{- include "mariadb-galera-ha.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: mariadb-galera
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "mariadb-galera-ha.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      initContainers:
+        - name: init-config
+          image: busybox:1.36
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -euo pipefail
+              mkdir -p /etc/mysql/conf.d
+              cp /etc/mysql/conf.d-base/galera.cnf /etc/mysql/conf.d/galera.cnf
+              sed -i "s/REPLICATION_PASSWORD_PLACEHOLDER/${MARIADB_REPLICATION_PASSWORD}/g" /etc/mysql/conf.d/galera.cnf
+              chmod 644 /etc/mysql/conf.d/galera.cnf
+              echo "[init-config] galera.cnf configured"
+          env:
+            - name: MARIADB_REPLICATION_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "mariadb-galera-ha.secretName" . }}
+                  key: mariadb-replication-password
+          volumeMounts:
+            - name: galera-conf-base
+              mountPath: /etc/mysql/conf.d-base
+              readOnly: true
+            - name: galera-conf
+              mountPath: /etc/mysql/conf.d
+          securityContext:
+            runAsUser: 0
+            allowPrivilegeEscalation: false
+            runAsNonRoot: false
+      containers:
+        - name: mariadb
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/bin/bash", "/scripts/entrypoint.sh"]
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: MARIADB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "mariadb-galera-ha.secretName" . }}
+                  key: mariadb-root-password
+            - name: MARIADB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "mariadb-galera-ha.secretName" . }}
+                  key: mariadb-password
+            - name: MARIADB_REPLICATION_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "mariadb-galera-ha.secretName" . }}
+                  key: mariadb-replication-password
+            - name: MARIADB_DATABASE
+              value: {{ .Values.auth.database | quote }}
+            - name: MARIADB_USER
+              value: {{ .Values.auth.username | quote }}
+            - name: MARIADB_GALERA_CLUSTER_NAME
+              value: {{ .Values.galera.clusterName | quote }}
+            - name: MARIADB_GALERA_CLUSTER_BOOTSTRAP
+              value: "no"
+            {{- with .Values.extraEnvVars }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: mysql
+              containerPort: 3306
+              protocol: TCP
+            - name: sst
+              containerPort: 4444
+              protocol: TCP
+            - name: galera
+              containerPort: 4567
+              protocol: TCP
+            - name: ist
+              containerPort: 4568
+              protocol: TCP
+          {{- if .Values.livenessProbe.enabled }}
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - >
+                  mysqladmin ping -u root -p"${MARIADB_ROOT_PASSWORD}" --connect-timeout=5 2>/dev/null &&
+                  mysql -u root -p"${MARIADB_ROOT_PASSWORD}" -e "SHOW STATUS LIKE 'wsrep_ready';" 2>/dev/null | grep -q ON
+            initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
+            successThreshold: {{ .Values.livenessProbe.successThreshold }}
+            failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
+          {{- end }}
+          {{- if .Values.readinessProbe.enabled }}
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - >
+                  mysqladmin ping -u root -p"${MARIADB_ROOT_PASSWORD}" --connect-timeout=5 2>/dev/null &&
+                  mysql -u root -p"${MARIADB_ROOT_PASSWORD}" -e "SHOW STATUS LIKE 'wsrep_ready';" 2>/dev/null | grep -q ON
+            initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
+            successThreshold: {{ .Values.readinessProbe.successThreshold }}
+            failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
+          {{- end }}
+          {{- if .Values.startupProbe.enabled }}
+          startupProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - mysqladmin ping -u root -p"${MARIADB_ROOT_PASSWORD}" --connect-timeout=5 2>/dev/null
+            initialDelaySeconds: {{ .Values.startupProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.startupProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.startupProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.startupProbe.failureThreshold }}
+          {{- end }}
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - mysqladmin shutdown -u root -p"${MARIADB_ROOT_PASSWORD}" 2>/dev/null || true
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+            - name: galera-conf
+              mountPath: /etc/mysql/conf.d
+            - name: recovery-info
+              mountPath: /recovery-info
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+        {{- if .Values.metrics.enabled }}
+        - name: metrics
+          image: "{{ .Values.metrics.image.repository }}:{{ .Values.metrics.image.tag }}"
+          imagePullPolicy: {{ .Values.metrics.image.pullPolicy }}
+          env:
+            - name: DATA_SOURCE_NAME
+              value: "root:$(MARIADB_ROOT_PASSWORD)@(localhost:3306)/"
+            - name: MARIADB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "mariadb-galera-ha.secretName" . }}
+                  key: mariadb-root-password
+          ports:
+            - name: metrics
+              containerPort: 9104
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.metrics.resources | nindent 12 }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.affinity }}
+      affinity:
+        {{- toYaml .Values.affinity | nindent 8 }}
+      {{- else if gt (.Values.replicaCount | int) 1 }}
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/instance
+                    operator: In
+                    values:
+                      - {{ .Release.Name | quote }}
+                  - key: app.kubernetes.io/name
+                    operator: In
+                    values:
+                      - {{ include "mariadb-galera-ha.name" . | quote }}
+                  - key: app.kubernetes.io/component
+                    operator: In
+                    values:
+                      - mariadb-galera
+              topologyKey: kubernetes.io/hostname
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: scripts
+          configMap:
+            name: {{ include "mariadb-galera-ha.fullname" . }}-scripts
+            defaultMode: 0755
+        - name: galera-conf-base
+          configMap:
+            name: {{ include "mariadb-galera-ha.fullname" . }}-galera-config
+        - name: galera-conf
+          emptyDir: {}
+        - name: recovery-info
+          emptyDir: {}
+        {{- if not .Values.persistence.enabled }}
+        - name: data
+          emptyDir: {}
+        {{- end }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+  {{- if .Values.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - {{ .Values.persistence.accessMode | quote }}
+        {{- if .Values.persistence.storageClass }}
+        storageClassName: {{ .Values.persistence.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size | quote }}
+  {{- end }}

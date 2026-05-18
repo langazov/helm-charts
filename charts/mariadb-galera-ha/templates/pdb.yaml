@@ -1,0 +1,14 @@
+{{- if and .Values.podDisruptionBudget.enabled (gt (.Values.replicaCount | int) 1) }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "mariadb-galera-ha.fullname" . }}
+  labels:
+    {{- include "mariadb-galera-ha.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "mariadb-galera-ha.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: mariadb-galera
+{{- end }}
