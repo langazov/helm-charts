@@ -110,7 +110,7 @@ recovery:
   ttlSecondsAfterFinished: 600
   image:
     repository: bitnami/kubectl
-    tag: "1.31"
+    tag: "latest"
     pullPolicy: IfNotPresent
 
 backup:

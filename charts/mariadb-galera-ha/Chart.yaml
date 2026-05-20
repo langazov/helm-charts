@@ -2,7 +2,7 @@ apiVersion: v2
 name: mariadb-galera-ha
 description: A Helm chart for MariaDB Galera Cluster with automatic crash recovery, split-brain prevention, and HA support
 type: application
-version: 0.1.0
+version: 0.1.1
 appVersion: "11.4"
 keywords:
   - mariadb
