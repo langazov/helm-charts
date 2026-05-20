@@ -110,7 +110,8 @@ recovery:
   ttlSecondsAfterFinished: 600
   image:
     repository: bitnami/kubectl
-    tag: "latest"
+    tag: ""
+    digest: sha256:e2b97dde9666986c61c56d49aae85a714b89b69392baa531438e74ec34096fb4
     pullPolicy: IfNotPresent
 
 backup:

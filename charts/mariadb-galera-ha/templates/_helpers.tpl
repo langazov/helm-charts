@@ -142,6 +142,19 @@ Recovery configmap name
 {{- end }}
 
 {{/*
+Build recovery hook image reference
+*/}}
+{{- define "mariadb-galera-ha.recoveryImage" -}}
+{{- if .Values.recovery.image.digest -}}
+{{- printf "%s@%s" .Values.recovery.image.repository .Values.recovery.image.digest -}}
+{{- else if .Values.recovery.image.tag -}}
+{{- printf "%s:%s" .Values.recovery.image.repository .Values.recovery.image.tag -}}
+{{- else -}}
+{{- .Values.recovery.image.repository -}}
+{{- end -}}
+{{- end }}
+
+{{/*
 Build wsrep_cluster_address from pod DNS names
 */}}
 {{- define "mariadb-galera-ha.galeraClusterAddress" -}}

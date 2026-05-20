@@ -27,7 +27,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: recovery
-          image: "{{ .Values.recovery.image.repository }}:{{ .Values.recovery.image.tag }}"
+          image: "{{ include "mariadb-galera-ha.recoveryImage" . }}"
           imagePullPolicy: {{ .Values.recovery.image.pullPolicy }}
           env:
             - name: POD_NAMESPACE
