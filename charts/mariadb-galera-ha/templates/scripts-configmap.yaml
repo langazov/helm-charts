@@ -65,7 +65,7 @@ data:
       echo "[entrypoint] Bootstrap initiated, recovery job will finalize"
     fi
 
-    exec docker-entrypoint.sh mysqld
+    exec docker-entrypoint.sh mariadbd
 
   recover-galera.sh: |
     #!/bin/bash
