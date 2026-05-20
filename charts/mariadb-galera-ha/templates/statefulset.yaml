@@ -123,8 +123,8 @@ spec:
                 - /bin/sh
                 - -c
                 - >
-                  mysqladmin ping -u root -p"${MARIADB_ROOT_PASSWORD}" --connect-timeout=5 2>/dev/null &&
-                  mysql -u root -p"${MARIADB_ROOT_PASSWORD}" -e "SHOW STATUS LIKE 'wsrep_ready';" 2>/dev/null | grep -q ON
+                  mariadb-admin ping -u root -p"${MARIADB_ROOT_PASSWORD}" --connect-timeout=5 2>/dev/null &&
+                  mariadb -u root -p"${MARIADB_ROOT_PASSWORD}" -e "SHOW STATUS LIKE 'wsrep_ready';" 2>/dev/null | grep -q ON
             initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
             timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
@@ -138,8 +138,8 @@ spec:
                 - /bin/sh
                 - -c
                 - >
-                  mysqladmin ping -u root -p"${MARIADB_ROOT_PASSWORD}" --connect-timeout=5 2>/dev/null &&
-                  mysql -u root -p"${MARIADB_ROOT_PASSWORD}" -e "SHOW STATUS LIKE 'wsrep_ready';" 2>/dev/null | grep -q ON
+                  mariadb-admin ping -u root -p"${MARIADB_ROOT_PASSWORD}" --connect-timeout=5 2>/dev/null &&
+                  mariadb -u root -p"${MARIADB_ROOT_PASSWORD}" -e "SHOW STATUS LIKE 'wsrep_ready';" 2>/dev/null | grep -q ON
             initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
             timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
@@ -152,7 +152,7 @@ spec:
               command:
                 - /bin/sh
                 - -c
-                - mysqladmin ping -u root -p"${MARIADB_ROOT_PASSWORD}" --connect-timeout=5 2>/dev/null
+                  - mariadb-admin ping -u root -p"${MARIADB_ROOT_PASSWORD}" --connect-timeout=5 2>/dev/null
             initialDelaySeconds: {{ .Values.startupProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.startupProbe.periodSeconds }}
             timeoutSeconds: {{ .Values.startupProbe.timeoutSeconds }}
@@ -164,7 +164,7 @@ spec:
                 command:
                   - /bin/sh
                   - -c
-                  - mysqladmin shutdown -u root -p"${MARIADB_ROOT_PASSWORD}" 2>/dev/null || true
+                  - mariadb-admin shutdown -u root -p"${MARIADB_ROOT_PASSWORD}" 2>/dev/null || true
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:

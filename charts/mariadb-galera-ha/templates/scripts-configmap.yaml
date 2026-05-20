@@ -37,13 +37,13 @@ data:
     if [ "$RECOVERY_MODE" = "recovery-in-progress" ] && [ "$BOOTSTRAP_NODE" = "$HOSTNAME" ]; then
       USE_BOOTSTRAP=true
       echo "[entrypoint] Recovery bootstrap node: $HOSTNAME"
-    elif [ "$POD_INDEX" = "0" ] && [ ! -f /var/lib/mysql/grastate.dat ]; then
+    elif [ "$POD_INDEX" = "0" ] && { [ ! -f /var/lib/mysql/grastate.dat ] || [ ! -f /var/lib/mysql/gvwstate.dat ]; }; then
       USE_BOOTSTRAP=true
-      echo "[entrypoint] Fresh install bootstrap: pod-0"
+      echo "[entrypoint] Bootstrap: pod-0"
     elif [ "$RECOVERY_MODE" = "recovery-in-progress" ] && [ -n "$BOOTSTRAP_NODE" ]; then
       echo "[entrypoint] Waiting for bootstrap node $BOOTSTRAP_NODE..."
       for _ in $(seq 1 60); do
-        if mysqladmin ping -h "${BOOTSTRAP_NODE}.${HEADLESS_SVC}" --connect-timeout=5 2>/dev/null; then
+        if mariadb-admin ping -h "${BOOTSTRAP_NODE}.${HEADLESS_SVC}" --connect-timeout=5 2>/dev/null; then
           echo "[entrypoint] Bootstrap node ready"
           break
         fi
@@ -106,7 +106,7 @@ data:
       for i in $(seq 0 $((CLUSTER_SIZE - 1))); do
         POD="${STATEFULSET_NAME}-${i}"
         STATUS=$(kubectl exec "$POD" -n "$NAMESPACE" -- \
-          mysql -u root -p"${MARIADB_ROOT_PASSWORD}" -e "SHOW STATUS LIKE 'wsrep_cluster_status';" 2>/dev/null \
+          mariadb -u root -p"${MARIADB_ROOT_PASSWORD}" -e "SHOW STATUS LIKE 'wsrep_cluster_status';" 2>/dev/null \
           | grep wsrep_cluster_status | awk '{print $2}' || echo "unknown")
         if [ "$STATUS" = "Primary" ]; then
           PRIMARY_COUNT=$((PRIMARY_COUNT + 1))
