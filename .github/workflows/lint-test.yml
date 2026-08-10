@@ -70,4 +70,4 @@ jobs:
 
       - name: Run chart-testing (install)
         if: steps.list.outputs.changed == 'true'
-        run: ct install --config .ct.yaml --skip-tests
+        run: ct install --config .ct.yaml

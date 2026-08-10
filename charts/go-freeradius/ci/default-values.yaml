@@ -3,19 +3,16 @@
 # freeRADIUS/freeradius-server/go-freeradius/docker/radiusd.Dockerfile and is
 # not published to a public registry, so kind-based ct install would hit
 # ImagePullBackOff. To validate that the chart's manifests install cleanly in
-# a real cluster, swap in a public scratch image that just sleeps, and disable
-# probes (which require the real radiusd binary).
-#
-# `ct install --skip-tests` is set in the workflow because `helm test` sends a
-# real RADIUS Access-Request, which only the actual radiusd image can answer.
+# a real cluster, swap in a public scratch image that just sleeps, disable
+# the probes (which require the real radiusd binary), and skip the helm test
+# (which sends a real RADIUS Access-Request only the real image can answer).
+
 image:
   repository: busybox
   tag: "1.36"
   pullPolicy: IfNotPresent
 
-# Keep the placeholder container alive.
-extraArgs: []
-# Override the radiusd entrypoint.
+# Override the radiusd ENTRYPOINT so the placeholder container stays alive.
 commandOverride:
   - "/bin/sh"
   - "-c"
@@ -27,4 +24,9 @@ startupProbe:
 livenessProbe:
   enabled: false
 readinessProbe:
+  enabled: false
+
+# The bundled helm test sends a real RADIUS Access-Request, which the
+# busybox placeholder cannot answer.
+tests:
   enabled: false

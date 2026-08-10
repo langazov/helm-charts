@@ -1,3 +1,4 @@
+{{- if and .Values.tests.enabled (not .Values.tests.skip) -}}
 {{- /*
 A `helm test` workload. `helm test` runs this Pod after install; it succeeds
 when radiusd answers a PAP Access-Request on the auth port.
@@ -37,3 +38,4 @@ spec:
             secretKeyRef:
               name: {{ include "go-freeradius.secretName" . }}
               key: {{ include "go-freeradius.secretKey" . }}
+{{- end -}}

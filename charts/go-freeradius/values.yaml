@@ -559,7 +559,13 @@ networkPolicy:
 
 ###############################################################################
 # `helm test` workload — overrides for the radclient image used by the test pod.
+#
+# Set tests.enabled=false to skip rendering the test pod entirely (used by CI
+# when only the chart's manifests can be validated, not the actual radiusd
+# image). tests.skip is an alias kept for backward compatibility.
 ###############################################################################
 tests:
+  enabled: true
+  skip: false
   radclient:
     image: freeradius/radclient:3.2.10
