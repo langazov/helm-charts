@@ -1,0 +1,571 @@
+###############################################################################
+# go-freeradius Helm chart
+#
+# Default values install a standalone `radiusd` (no backends). Enable the
+# optional backends below (redis.*, mysql.*, mariadb.*, mongodb.*) to pull in
+# the matching Bitnami subcharts and wire them into radiusd.conf automatically.
+#
+#   helm install radius ./deploy/helm/go-freeradius \
+#     --namespace radius --create-namespace \
+#     --set redis.enabled=true \
+#     --set mysql.enabled=true
+#
+###############################################################################
+clusterDomain: cluster.local
+
+# Override the install namespace. By default Helm installs into the namespace
+# passed with --namespace; some teams prefer to pin it via values.
+namespaceOverride: ""
+
+# Override the resource name prefix.
+nameOverride: ""
+fullnameOverride: ""
+
+# Free-form labels appended to every rendered object.
+commonLabels: {}
+
+###############################################################################
+# Container image
+###############################################################################
+image:
+  # The image built by docker/radiusd.Dockerfile. Override with your registry
+  # path when pushing to a remote registry.
+  repository: go-freeradius-radiusd
+  tag: ""           # empty -> use Chart.appVersion (3.2.10)
+  pullPolicy: IfNotPresent
+  pullSecrets: []   # [{ name: regcred }, ...] for private registries
+
+###############################################################################
+# Deployment / replica configuration
+###############################################################################
+replicaCount: 1
+
+# If >1, also enable pdb.enabled below so a node drain cannot evict all
+# replicas at once.
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 75
+  # targetMemoryUtilizationPercentage: 75
+
+pdb:
+  enabled: false
+  minAvailable: 1
+  # maxUnavailable: 1
+
+# Restart policy for the Pod. RADIUS servers are long-lived; Always is the
+# safer default and matches what `kubectl expose deployment` would produce.
+restartPolicy: Always
+
+# Termination grace period. RADIUS is UDP so there are no in-flight connections
+# to drain in the TCP sense; the default is plenty for the worker pool to flush.
+terminationGracePeriodSeconds: 30
+
+# Extra CLI args appended after the templated radiusd.conf invocation
+# (e.g. "-X" for full debug output, "-workers 64" to override the pool size).
+extraArgs: []
+
+# Override the container ENTRYPOINT. Default is the image's `radiusd`. Set to
+# ["sleep","3600"] (or similar) when running ct install against a placeholder
+# image — see ci/default-values.yaml.
+commandOverride: []
+
+# Extra environment variables injected into the radiusd container.
+extraEnv: []
+# - name: GOMAXPROCS
+#   value: "4"
+
+# Extra volumes / volume mounts (e.g. TLS material, custom dictionaries).
+extraVolumes: []
+extraVolumeMounts: []
+
+# Pod-level annotations (e.g. for Prometheus discovery, linkerd injection).
+podAnnotations: {}
+
+# Pod-level labels.
+podLabels: {}
+
+# Priority class name (preempt important workloads).
+priorityClassName: ""
+
+###############################################################################
+# Update strategy
+###############################################################################
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 25%
+    maxSurge: 25%
+
+###############################################################################
+# Security context
+#
+# The radiusd image runs as a non-root user (UID 10001) created by
+# docker/radiusd.Dockerfile. We pin that UID/GID at both pod and container
+# level so PVCs and security policies behave predictably.
+###############################################################################
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+    # RADIUS auth/acct ports are >=1024, so no NET_BIND_SERVICE is required.
+    add: []
+
+# RADIUS binds to 0.0.0.0:1812/1813/18120/3799, all unprivileged.
+containerPorts:
+  auth: 1812
+  acct: 1813
+  status: 18120
+  coa: 3799
+
+###############################################################################
+# Resource requests/limits
+#
+# RADIUS is CPU-bound for crypto (PAP/CHAP/EAP) and lightly memory-bound for
+# the request pool and caches. These defaults are conservative starting points
+# for a few hundred requests/sec; profile before scaling.
+###############################################################################
+resources:
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+###############################################################################
+# Probes
+#
+# radiusd has no HTTP endpoint; it speaks RADIUS/UDP. The only built-in health
+# check is a Status-Server packet on port 18120, but that requires a RADIUS
+# client binary in the pod. We default to an `exec` probe that verifies the
+# process is listening on the auth port — override to a real RADIUS probe if
+# you ship radclient in a sidecar.
+###############################################################################
+startupProbe:
+  enabled: true
+  exec:
+    command:
+      - /bin/sh
+      - -c
+      - "ss -lun | grep -q ':{{ .Values.containerPorts.auth }}'"
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 30
+
+livenessProbe:
+  enabled: true
+  exec:
+    command:
+      - /bin/sh
+      - -c
+      - "ss -lun | grep -q ':{{ .Values.containerPorts.auth }}'"
+  periodSeconds: 30
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+readinessProbe:
+  enabled: false
+  # The default exec probe only checks the socket; override with a real
+  # Status-Server request once a radclient sidecar is available.
+
+###############################################################################
+# Service — RADIUS is UDP, so each port is explicitly protocol: UDP.
+###############################################################################
+service:
+  type: ClusterIP
+  annotations: {}
+  # External traffic policy for LoadBalancer/NodePort services. "Local"
+  # preserves the client source IP for client allow-listing.
+  externalTrafficPolicy: Cluster
+  # loadBalancerIP: ""
+  # loadBalancerSourceRanges: []  # ["10.0.0.0/8"]
+  # Publishes auth/acct/status/coa by default. Drop entries to hide a
+  # listener from outside the cluster.
+  ports:
+    - name: auth
+      port: 1812
+      targetPort: auth
+      protocol: UDP
+    - name: acct
+      port: 1813
+      targetPort: acct
+      protocol: UDP
+    - name: status
+      port: 18120
+      targetPort: status
+      protocol: UDP
+    - name: coa
+      port: 3799
+      targetPort: coa
+      protocol: UDP
+
+###############################################################################
+# Service account
+###############################################################################
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+  automountServiceAccountToken: false
+
+###############################################################################
+# RADIUS configuration
+#
+# Two modes:
+#
+#   1. Leave radiusd.existingConfigMap empty and the chart renders a
+#      ConfigMap from the template below, automatically wiring the
+#      optional subcharts (redis, mysql/mariadb, mongodb).
+#
+#   2. Set radiusd.existingConfigMap to a ConfigMap you render out-of-band
+#      to take full control of radiusd.conf.
+###############################################################################
+radiusd:
+  # Path inside the container where the ConfigMap is mounted.
+  configPath: /etc/freeradius/radiusd.conf
+  dictionaryPath: /opt/freeradius/share/dictionary
+  existingConfigMap: ""
+
+  # Server-wide tuning, mirrored from the upstream docker/example/radiusd.conf.
+  max_request_time: 30
+  cleanup_delay: 5
+  max_requests: 1024
+  reject_delay: 0
+
+  # Worker pool size (threads.c max_servers). 0 = automatic.
+  workers: 0
+
+  # The RADIUS shared secret. Stored in a Secret. Either set the cleartext
+  # value here or supply existingSecret / existingSecretKey.
+  sharedSecret:
+    value: "testing123"
+    existingSecret: ""
+    existingSecretKey: "radius-secret"
+
+  # clients.conf-style client blocks appended to radiusd.conf. Each entry
+  # becomes a `client <name> { ipaddr = ...; secret = ...; }` block.
+  # The default opens the server to any source — tighten this in production.
+  clients:
+    - name: all
+      ipaddr: 0.0.0.0/0
+      secret: ""        # empty -> use sharedSecret.value / secret reference
+
+  # The "files" module (rlm_files). The users file is shipped as a ConfigMap;
+  # replace the contents to provision local users.
+  files:
+    enabled: true
+    filename: /etc/freeradius/users
+    existingConfigMap: ""
+    content: |
+      # Default user — password "testing123". Remove in production.
+      bob Cleartext-Password := "testing123"
+        Reply-Message := "Welcome bob"
+
+  # Module chain. Order matters — these become the unlang blocks of the
+  # default virtual server. Set to [] to skip a section.
+  #
+  # The defaults below enable only the file-backed modules so the chart is
+  # usable out-of-the-box with no backends. When you enable a backend, add
+  # the matching module here (and to moduleConfig / the chain arrays):
+  #
+  #   --set redis.enabled=true \
+  #   --set radiusd.modules.instantiate[+]=redis
+  #   --set mysql.enabled=true \
+  #   --set 'radiusd.modules.instantiate={files,pap,chap,redis,sql}' \
+  #   --set 'radiusd.modules.authorize={files,sql,chap,pap}' \
+  #   --set 'radiusd.modules.accounting[+]=sql' \
+  #   --set 'radiusd.modules.postAuth[+]=sql'
+  modules:
+    # Modules instantiated in the global `modules { }` block. Each entry must
+    # match a module name the radiusd binary knows about. Module-specific
+    # config is merged from `moduleConfig` below.
+    instantiate:
+      - files
+      - pap
+      - chap
+    # Authorize chain.
+    authorize: [files, chap, pap]
+    # Authenticate section (per Auth-Type).
+    authenticate:
+      - authType: PAP
+        modules: [pap]
+      - authType: CHAP
+        modules: [chap]
+    # Accounting chain.
+    accounting: []
+    # post-auth chain.
+    postAuth: []
+    # Status-Server virtual server body.
+    status: [ok]
+    # CoA (dynamic-authorization) virtual server body.
+    coa: [ok]
+
+  # Module-specific snippets, inlined into the `modules { }` block of the
+  # generated radiusd.conf. Override per module to customise. The defaults
+  # match docker/example/radiusd.conf and reference the helpers above so they
+  # track whichever backend (subchart or external) is enabled.
+  moduleConfig:
+    files: |
+      files {
+        filename = {{ .Values.radiusd.files.filename }}
+      }
+    pap: |
+      pap { }
+    chap: |
+      chap { }
+    redis: |
+      redis {
+        server = {{ include "go-freeradius.redisHost" . }}
+        port = {{ include "go-freeradius.redisPort" . }}
+        database = 0
+        pool {
+          start = 8
+          min = 8
+          max = 32
+        }
+      }
+    sql: |
+      sql {
+        driver = {{ include "go-freeradius.sqlDriver" . }}
+        database = "{{ include "go-freeradius.sqlUsername" . }}:$(SQL_PASSWORD)@tcp({{ include "go-freeradius.sqlHost" . }}:{{ include "go-freeradius.sqlPort" . }})/{{ include "go-freeradius.sqlDatabase" . }}?parseTime=true"
+        num_sql_socks = 96
+        cache {
+          store = redis
+          ttl = 60
+        }
+        authorize_check_query = "SELECT id, username, attribute, value, op FROM radcheck WHERE username = ? ORDER BY id"
+        authorize_reply_query = "SELECT id, username, attribute, value, op FROM radreply WHERE username = ? ORDER BY id"
+        accounting_start_query = "INSERT INTO radacct (acctsessionid, username, nasipaddress, acctstarttime, servicetype) VALUES (?, ?, ?, NOW(), ?)"
+        accounting_update_query = "UPDATE radacct SET acctsessiontime = ?, acctinputoctets = ?, acctoutputoctets = ? WHERE acctsessionid = ? AND username = ?"
+        accounting_stop_query = "UPDATE radacct SET acctstoptime = NOW(), acctsessiontime = ?, acctinputoctets = ?, acctoutputoctets = ?, acctterminatecause = ? WHERE acctsessionid = ? AND username = ?"
+        postauth_query = "INSERT INTO radpostauth (username, pass, reply, authdate) VALUES (?, '', ?, NOW())"
+      }
+
+  # Listener configuration for the default virtual server.
+  listeners:
+    auth:
+      enabled: true
+      ipaddr: 0.0.0.0
+      port: 1812
+    acct:
+      enabled: true
+      ipaddr: 0.0.0.0
+      port: 1813
+    status:
+      enabled: true
+      ipaddr: 0.0.0.0
+      port: 18120
+    coa:
+      enabled: true
+      ipaddr: 0.0.0.0
+      port: 3799
+
+  # TLS / RadSec listener (RFC 6614). Disabled by default; enable and supply
+  # a certificate Secret to terminate RADIUS-over-TLS.
+  tls:
+    enabled: false
+    ipaddr: 0.0.0.0
+    port: 2083
+    certSecret: ""            # k8s TLS Secret (tls.crt / tls.key)
+    certPath: /etc/freeradius/tls/tls.crt
+    keyPath: /etc/freeradius/tls/tls.key
+
+###############################################################################
+# External SQL backend (used when mysql.enabled and mariadb.enabled are both
+# false). Supply host/port/credentials here to point radiusd at an existing
+# database.
+###############################################################################
+sql:
+  # External SQL server. Used when no subchart is enabled.
+  external:
+    host: ""
+    port: 3306
+  # Flat aliases for convenience.
+  host: ""
+  port: 3306
+  database: radius
+  username: radius
+  password: ""
+  existingSecret: ""
+  existingSecretKey: ""
+
+###############################################################################
+# Redis — Bitnami subchart
+#
+# Set redis.enabled=true to install a Redis primary alongside radiusd. The
+# generated radiusd.conf automatically points at <release>-redis-master.
+#
+# Or, to use an existing Redis, leave redis.enabled=false and set:
+#   redis.external.host: my-redis.internal
+#   redis.external.port: 6379
+###############################################################################
+redis:
+  enabled: false
+  # External Redis (used when enabled=false).
+  external:
+    host: ""
+    port: 6379
+  # Legacy flat fields, kept for the simplest possible standalone override.
+  host: ""
+  port: 6379
+  architecture: standalone
+  auth:
+    enabled: false
+  master:
+    persistence:
+      enabled: false
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+
+###############################################################################
+# MySQL — Bitnami subchart
+###############################################################################
+mysql:
+  enabled: false
+  auth:
+    rootPassword: ""
+    database: radius
+    username: radius
+    password: radius-password
+  primary:
+    persistence:
+      enabled: false
+    resources:
+      requests:
+        cpu: 250m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+  # Ship the FreeRADIUS schema so the database is ready when radiusd boots.
+  initdbScripts:
+    init.sql: |
+      CREATE TABLE IF NOT EXISTS radcheck (
+        id int(11) NOT NULL AUTO_INCREMENT,
+        username varchar(64) NOT NULL DEFAULT '',
+        attribute varchar(64) NOT NULL DEFAULT '',
+        op char(2) NOT NULL DEFAULT ':=',
+        value varchar(253) NOT NULL DEFAULT '',
+        PRIMARY KEY (id),
+        KEY username (username(32))
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+      CREATE TABLE IF NOT EXISTS radreply (
+        id int(11) NOT NULL AUTO_INCREMENT,
+        username varchar(64) NOT NULL DEFAULT '',
+        attribute varchar(64) NOT NULL DEFAULT '',
+        op char(2) NOT NULL DEFAULT ':=',
+        value varchar(253) NOT NULL DEFAULT '',
+        PRIMARY KEY (id),
+        KEY username (username(32))
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+      CREATE TABLE IF NOT EXISTS radacct (
+        acctsessionid varchar(64) NOT NULL DEFAULT '',
+        username varchar(64) NOT NULL DEFAULT '',
+        nasipaddress varchar(15) NOT NULL DEFAULT '',
+        acctstarttime datetime NULL DEFAULT NULL,
+        acctstoptime datetime NULL DEFAULT NULL,
+        acctsessiontime int(12) DEFAULT NULL,
+        acctinputoctets bigint(20) DEFAULT NULL,
+        acctoutputoctets bigint(20) DEFAULT NULL,
+        acctterminatecause varchar(32) DEFAULT NULL,
+        servicetype varchar(32) DEFAULT NULL,
+        PRIMARY KEY (acctsessionid, username)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+      CREATE TABLE IF NOT EXISTS radpostauth (
+        id int(11) NOT NULL AUTO_INCREMENT,
+        username varchar(64) NOT NULL DEFAULT '',
+        pass varchar(64) NOT NULL DEFAULT '',
+        reply varchar(32) NOT NULL DEFAULT '',
+        authdate datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+###############################################################################
+# MariaDB — Bitnami subchart (alternative to MySQL; both speak the mysql wire
+# protocol, so radiusd uses driver=mysql for either). Leave both disabled to
+# use an external database.
+###############################################################################
+mariadb:
+  enabled: false
+  auth:
+    rootPassword: ""
+    database: radius
+    username: radius
+    password: radius-password
+  primary:
+    persistence:
+      enabled: false
+    resources:
+      requests:
+        cpu: 250m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+
+###############################################################################
+# MongoDB — Bitnami subchart (rlm_mongo). Disabled by default.
+###############################################################################
+mongodb:
+  enabled: false
+  auth:
+    rootPassword: radius-password
+    usernames:
+      - radius
+    passwords:
+      - radius-password
+    databases:
+      - radius
+  persistence:
+    enabled: false
+
+mongo:
+  external:
+    host: ""
+    port: 27017
+
+###############################################################################
+# Scheduling
+###############################################################################
+nodeSelector: {}
+affinity: {}
+tolerations: []
+topologySpreadConstraints: []
+
+###############################################################################
+# NetworkPolicy (default off — enable in a NetworkPolicy-enforced cluster).
+###############################################################################
+networkPolicy:
+  enabled: false
+  ingressFrom: []   # [{ podSelector: { matchLabels: { app: nas } } }]
+
+###############################################################################
+# `helm test` workload — overrides for the radclient image used by the test pod.
+#
+# Set tests.enabled=false to skip rendering the test pod entirely (used by CI
+# when only the chart's manifests can be validated, not the actual radiusd
+# image). tests.skip is an alias kept for backward compatibility.
+###############################################################################
+tests:
+  enabled: true
+  skip: false
+  radclient:
+    image: freeradius/radclient:3.2.10

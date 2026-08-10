@@ -28,6 +28,10 @@ jobs:
       - name: Set up chart-testing
         uses: helm/chart-testing-action@v2.6.1
 
+      - name: Add chart repositories
+        run: |
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+
       - name: Run chart-testing (list)
         id: list
         run: |
@@ -39,6 +43,26 @@ jobs:
       - name: Run chart-testing (lint)
         if: steps.list.outputs.changed == 'true'
         run: ct lint --config .ct.yaml
+
+      - name: Extract chart dependencies
+        if: steps.list.outputs.changed == 'true'
+        run: |
+          # Helm dep build (run by `ct lint` and again by `ct install`)
+          # stores subcharts as .tgz, but `helm install` only recognises
+          # unpacked chart directories in charts/. Extract each .tgz once
+          # so the install step can satisfy its dependency check; subsequent
+          # `helm dependency build` invocations download fresh .tgz alongside
+          # the existing directories without removing them.
+          for chart_charts in charts/*/charts; do
+            [ -d "$chart_charts" ] || continue
+            (
+              cd "$chart_charts"
+              shopt -s nullglob
+              for f in *.tgz; do
+                tar -xzf "$f" && rm -f "$f"
+              done
+            )
+          done
 
       - name: Create kind cluster
         if: steps.list.outputs.changed == 'true'

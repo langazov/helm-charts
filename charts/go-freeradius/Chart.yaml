@@ -1,0 +1,58 @@
+apiVersion: v2
+name: go-freeradius
+description: |
+  Go port of FreeRADIUS server 3.2.10 (module github.com/freeradius/go-freeradius).
+  Deploys the `radiusd` daemon as a Kubernetes Deployment that serves RADIUS
+  authentication, accounting, status and CoA over UDP. Optional Redis, MySQL
+  (or MariaDB) and MongoDB backends are pulled in as subcharts and gated by
+  values, so the same chart installs a standalone server, a server with a
+  cache, or a full SQL-backed deployment.
+type: application
+version: 0.1.0
+appVersion: "3.2.10"
+home: https://github.com/langazov/helm-charts
+sources:
+  - https://github.com/langazov/helm-charts
+  - https://github.com/freeRADIUS/freeradius-server
+maintainers:
+  - name: langazov
+    email: langazov@gmail.com
+keywords:
+  - radius
+  - authentication
+  - accounting
+  - eap
+  - freeradius
+  - go
+
+# Optional, toggleable backends. Each dependency is enabled by a top-level
+# `<name>.enabled` flag in values.yaml. Only the subcharts the operator opts
+# into are installed; the radiusd ConfigMap is templated to point at whichever
+# services end up existing.
+#
+# Service names follow the Bitnami convention (`<release>-<chart>-master`,
+# `<release>-<chart>-primary`, etc.); the helpers in `_helpers.tpl` derive them
+# from the release name. Override .Values.redis.external.host / .Values.sql.* /
+# .Values.mongo.external.* to point radiusd at an out-of-cluster backend
+# without disabling the import mechanism.
+dependencies:
+  - name: redis
+    version: ">=20.11.0 <21.0.0"
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled
+    alias: redis
+  - name: mysql
+    version: ">=12.3.0 <13.0.0"
+    repository: https://charts.bitnami.com/bitnami
+    condition: mysql.enabled
+    alias: mysql
+  - name: mariadb
+    version: ">=20.0.0 <21.0.0"
+    repository: https://charts.bitnami.com/bitnami
+    condition: mariadb.enabled
+    alias: mariadb
+  - name: mongodb
+    version: ">=16.0.0 <17.0.0"
+    repository: https://charts.bitnami.com/bitnami
+    condition: mongodb.enabled
+    alias: mongodb

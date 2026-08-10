@@ -1,0 +1,41 @@
+{{- if and .Values.tests.enabled (not .Values.tests.skip) -}}
+{{- /*
+A `helm test` workload. `helm test` runs this Pod after install; it succeeds
+when radiusd answers a PAP Access-Request on the auth port.
+
+The image used here is the upstream C radclient. Replace via
+.tests.radclient.image if your environment is air-gapped.
+*/ -}}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "go-freeradius.fullname" . }}-test
+  namespace: {{ include "go-freeradius.namespace" . }}
+  labels:
+    {{- include "go-freeradius.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  {{- with .Values.image.pullSecrets }}
+  imagePullSecrets:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  containers:
+    - name: radclient
+      image: {{ .Values.tests.radclient.image | default "freeradius/radclient:3.2.10" }}
+      command:
+        - /bin/sh
+        - -c
+        - |
+          set -eu
+          printf 'User-Name = "bob"\nUser-Password = "testing123"\n' > /tmp/req
+          radclient -x {{ include "go-freeradius.fullname" . }}:{{ (first .Values.service.ports).port }} auth "$RADIUS_SECRET" < /tmp/req
+      env:
+        - name: RADIUS_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "go-freeradius.secretName" . }}
+              key: {{ include "go-freeradius.secretKey" . }}
+{{- end -}}

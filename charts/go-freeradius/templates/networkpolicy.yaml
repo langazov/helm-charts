@@ -1,0 +1,50 @@
+{{- if .Values.networkPolicy.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "go-freeradius.fullname" . }}
+  namespace: {{ include "go-freeradius.namespace" . }}
+  labels:
+    {{- include "go-freeradius.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "go-freeradius.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow UDP on every listener published by the Service.
+    {{- range .Values.service.ports }}
+    - ports:
+        - port: {{ .targetPort }}
+          protocol: {{ .protocol }}
+      {{- with $.Values.networkPolicy.ingressFrom }}
+      from:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- end }}
+  egress:
+    # DNS.
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # Backends.
+    {{- if or .Values.redis.enabled .Values.redis.external.host }}
+    - ports:
+        - port: {{ include "go-freeradius.redisPort" . }}
+          protocol: TCP
+    {{- end }}
+    {{- if or .Values.mysql.enabled .Values.mariadb.enabled .Values.sql.external.host .Values.sql.host }}
+    - ports:
+        - port: {{ include "go-freeradius.sqlPort" . }}
+          protocol: TCP
+    {{- end }}
+    {{- if or .Values.mongodb.enabled .Values.mongo.external.host }}
+    - ports:
+        - port: {{ include "go-freeradius.mongoPort" . }}
+          protocol: TCP
+    {{- end }}
+{{- end -}}

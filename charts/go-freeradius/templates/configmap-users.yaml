@@ -1,0 +1,12 @@
+{{- if and .Values.radiusd.files.enabled (not .Values.radiusd.files.existingConfigMap) -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "go-freeradius.usersConfigMapName" . }}
+  namespace: {{ include "go-freeradius.namespace" . }}
+  labels:
+    {{- include "go-freeradius.labels" . | nindent 4 }}
+data:
+  users: |
+    {{- .Values.radiusd.files.content | nindent 4 }}
+{{- end -}}

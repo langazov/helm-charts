@@ -1,0 +1,18 @@
+# Patterns to ignore when packaging the chart.
+# Source: https://github.com/bitnami/charts/blob/main/.helmignore
+.git
+.gitignore
+.github
+.vscode
+.idea
+.DS_Store
+*.tgz
+*.tar.gz
+*.zip
+*.swp
+*.bak
+*.orig
+*~
+project.svg
+README.md.gotmpl
+ci/

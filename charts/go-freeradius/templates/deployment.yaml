@@ -1,0 +1,184 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "go-freeradius.fullname" . }}
+  namespace: {{ include "go-freeradius.namespace" . }}
+  labels:
+    {{- include "go-freeradius.labels" . | nindent 4 }}
+  {{- with .Values.commonLabels }}
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  revisionHistoryLimit: 10
+  strategy:
+    {{- toYaml .Values.updateStrategy | nindent 4 }}
+  selector:
+    matchLabels:
+      {{- include "go-freeradius.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        # Roll the Pod when the rendered config changes.
+        checksum/config: {{ include (print $.Template.BasePath "/configmap-radiusd.yaml") . | sha256sum }}
+        checksum/users:  {{ include (print $.Template.BasePath "/configmap-users.yaml")   . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret-radius.yaml")    . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "go-freeradius.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "go-freeradius.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automountServiceAccountToken }}
+      restartPolicy: {{ .Values.restartPolicy }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: radiusd
+          image: {{ include "go-freeradius.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.commandOverride }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- $args := list "-d" .Values.radiusd.dictionaryPath "-c" .Values.radiusd.configPath }}
+          {{- range .Values.extraArgs }}
+          {{- $args = append $args . }}
+          {{- end }}
+          args:
+          {{- toYaml $args | nindent 12 }}
+          env:
+            # The shared RADIUS secret is passed via env to avoid baking it
+            # into the ConfigMap. The radiusd.conf template references
+            # ${env:RADIUS_SECRET} for client blocks that don't set a secret.
+            - name: RADIUS_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "go-freeradius.secretName" . }}
+                  key: {{ include "go-freeradius.secretKey" . }}
+            # The SQL DSN uses $(SQL_PASSWORD) so credentials never appear in
+            # the ConfigMap. When a subchart is enabled, this points at the
+            # Secret it created; otherwise at the external-SQL Secret rendered
+            # by this chart.
+            {{- if or .Values.mysql.enabled .Values.mariadb.enabled (and (not .Values.mysql.enabled) (not .Values.mariadb.enabled) .Values.sql.password) }}
+            - name: SQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "go-freeradius.sqlSecretName" . }}
+                  key: {{ include "go-freeradius.sqlSecretKey" . }}
+            {{- end }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: auth
+              containerPort: {{ .Values.containerPorts.auth }}
+              protocol: UDP
+            - name: acct
+              containerPort: {{ .Values.containerPorts.acct }}
+              protocol: UDP
+            - name: status
+              containerPort: {{ .Values.containerPorts.status }}
+              protocol: UDP
+            - name: coa
+              containerPort: {{ .Values.containerPorts.coa }}
+              protocol: UDP
+            {{- if .Values.radiusd.tls.enabled }}
+            - name: radsec
+              containerPort: {{ .Values.radiusd.tls.port }}
+              protocol: TCP
+            {{- end }}
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.startupProbe.enabled }}
+          startupProbe:
+{{ tpl (omit .Values.startupProbe "enabled" | toYaml) . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.livenessProbe.enabled }}
+          livenessProbe:
+{{ tpl (omit .Values.livenessProbe "enabled" | toYaml) . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.readinessProbe.enabled }}
+          readinessProbe:
+{{ tpl (omit .Values.readinessProbe "enabled" | toYaml) . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: {{ .Values.radiusd.configPath }}
+              subPath: radiusd.conf
+              readOnly: true
+            {{- if .Values.radiusd.files.enabled }}
+            - name: users
+              mountPath: {{ .Values.radiusd.files.filename }}
+              subPath: users
+              readOnly: true
+            {{- end }}
+            {{- if .Values.radiusd.tls.enabled }}
+            - name: tls
+              mountPath: /etc/freeradius/tls
+              readOnly: true
+            {{- end }}
+            # radiusd writes detail logs and radutmp under /tmp by default;
+            # with readOnlyRootFilesystem we need a writable scratch volume.
+            - name: tmp
+              mountPath: /tmp
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "go-freeradius.configMapName" . }}
+        {{- if .Values.radiusd.files.enabled }}
+        - name: users
+          configMap:
+            name: {{ include "go-freeradius.usersConfigMapName" . }}
+        {{- end }}
+        {{- if .Values.radiusd.tls.enabled }}
+        - name: tls
+          secret:
+            secretName: {{ required "radiusd.tls.certSecret is required when radiusd.tls.enabled is true" .Values.radiusd.tls.certSecret }}
+        {{- end }}
+        - name: tmp
+          emptyDir: {}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}

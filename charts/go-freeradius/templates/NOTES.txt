@@ -1,0 +1,38 @@
+Thank you for installing {{ .Chart.Name }}-{{ .Chart.Version }} in namespace {{ include "go-freeradius.namespace" . }}.
+
+The go-freeradius server (radiusd) is deployed as a {{ .Values.service.type }} Service
+exposing the following UDP ports:
+
+{{- range .Values.service.ports }}
+  {{ .name }}: {{ .port }}/{{ .protocol }}
+{{- end }}
+
+{{- if or .Values.redis.enabled .Values.mysql.enabled .Values.mariadb.enabled .Values.mongodb.enabled }}
+
+Optional backends installed alongside radiusd:
+{{- if .Values.redis.enabled }}
+  - Redis:   {{ include "go-freeradius.redisHost" . }}:{{ include "go-freeradius.redisPort" . }}
+{{- end }}
+{{- if or .Values.mysql.enabled .Values.mariadb.enabled }}
+  - SQL:     {{ include "go-freeradius.sqlHost" . }}:{{ include "go-freeradius.sqlPort" . }} ({{ include "go-freeradius.sqlDriver" . }})
+{{- end }}
+{{- if .Values.mongodb.enabled }}
+  - MongoDB: {{ include "go-freeradius.mongoHost" . }}:{{ include "go-freeradius.mongoPort" . }}
+{{- end }}
+{{- end }}
+
+Quick smoke test (from inside the cluster):
+
+  kubectl -n {{ include "go-freeradius.namespace" . }} run radclient --rm -i --tty \
+    --image=ghcr.io/freeradius/radclient:3.2.10 \
+    --restart=Never -- \
+    /usr/local/bin/radclient -x {{ include "go-freeradius.fullname" . }}:{{ (index .Values.service.ports 0).port }} auth "${RADIUS_SECRET:-testing123}"
+
+Or with the bundled radclient:
+
+  kubectl -n {{ include "go-freeradius.namespace" . }} port-forward svc/{{ include "go-freeradius.fullname" . }} 1812:1812/udp
+
+Useful commands:
+
+  kubectl -n {{ include "go-freeradius.namespace" . }} logs -f deploy/{{ include "go-freeradius.fullname" . }}
+  kubectl -n {{ include "go-freeradius.namespace" . }} get all -l app.kubernetes.io/instance={{ .Release.Name }}
