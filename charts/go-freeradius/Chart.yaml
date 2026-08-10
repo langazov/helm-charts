@@ -15,7 +15,7 @@ sources:
   - https://github.com/langazov/helm-charts
   - https://github.com/freeRADIUS/freeradius-server
 maintainers:
-  - name: Internet Market Solutions
+  - name: langazov
     email: langazov@gmail.com
 keywords:
   - radius
