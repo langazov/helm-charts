@@ -47,6 +47,57 @@ entries:
     urls:
     - https://github.com/langazov/helm-charts/releases/download/gitea-0.2.0/gitea-0.2.0.tgz
     version: 0.2.0
+  go-freeradius:
+  - apiVersion: v2
+    appVersion: 3.2.10
+    created: "2026-08-10T16:43:55.907162545Z"
+    dependencies:
+    - alias: redis
+      condition: redis.enabled
+      name: redis
+      repository: https://charts.bitnami.com/bitnami
+      version: '>=20.11.0 <21.0.0'
+    - alias: mysql
+      condition: mysql.enabled
+      name: mysql
+      repository: https://charts.bitnami.com/bitnami
+      version: '>=12.3.0 <13.0.0'
+    - alias: mariadb
+      condition: mariadb.enabled
+      name: mariadb
+      repository: https://charts.bitnami.com/bitnami
+      version: '>=20.0.0 <21.0.0'
+    - alias: mongodb
+      condition: mongodb.enabled
+      name: mongodb
+      repository: https://charts.bitnami.com/bitnami
+      version: '>=16.0.0 <17.0.0'
+    description: 'Go port of FreeRADIUS server 3.2.10 (module github.com/freeradius/go-freeradius).
+      Deploys the `radiusd` daemon as a Kubernetes Deployment that serves RADIUS authentication,
+      accounting, status and CoA over UDP. Optional Redis, MySQL (or MariaDB) and
+      MongoDB backends are pulled in as subcharts and gated by values, so the same
+      chart installs a standalone server, a server with a cache, or a full SQL-backed
+      deployment. '
+    digest: b40b982f6b82f83d19649bebb913c1398e8ca9ad2a9607094a027fd12d768721
+    home: https://github.com/langazov/helm-charts
+    keywords:
+    - radius
+    - authentication
+    - accounting
+    - eap
+    - freeradius
+    - go
+    maintainers:
+    - email: langazov@gmail.com
+      name: langazov
+    name: go-freeradius
+    sources:
+    - https://github.com/langazov/helm-charts
+    - https://github.com/freeRADIUS/freeradius-server
+    type: application
+    urls:
+    - https://github.com/langazov/helm-charts/releases/download/go-freeradius-0.1.0/go-freeradius-0.1.0.tgz
+    version: 0.1.0
   mariadb:
   - apiVersion: v2
     appVersion: lts
@@ -383,4 +434,4 @@ entries:
     urls:
     - https://github.com/langazov/helm-charts/releases/download/wordpress-0.1.0/wordpress-0.1.0.tgz
     version: 0.1.0
-generated: "2025-12-27T09:51:07.232092699Z"
+generated: "2026-08-10T16:43:55.907187913Z"
