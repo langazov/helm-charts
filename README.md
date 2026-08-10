@@ -39,6 +39,10 @@ helm upgrade my-release my-charts/mongodb
 
 ### Applications
 
+- **go-freeradius** (v0.1.0): Go port of FreeRADIUS server 3.2.10 (RADIUS auth/acct/EAP)
+  - App Version: 3.2.10
+  - Features: UDP auth/acct/status/CoA listeners, optional Redis, MySQL/MariaDB, MongoDB backends as subcharts
+
 - **gitea** (v0.2.1): A lightweight, self-hosted Git service with MariaDB backend
   - App Version: 1.21.11
   - Features: Version control, SCM, integrated MariaDB
