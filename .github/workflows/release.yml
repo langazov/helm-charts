@@ -26,6 +26,31 @@ jobs:
         with:
           version: v3.14.4
 
+      - name: Add chart repositories
+        run: |
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+
+      - name: Build chart dependencies
+        run: |
+          # chart-releaser runs `helm package` on each chart, which requires
+          # every subchart declared in Chart.yaml to be present in charts/.
+          # `helm dependency build` downloads the subcharts as .tgz, but
+          # `helm package` (and `helm install`/`helm template`) only recognise
+          # unpacked chart directories — so extract every .tgz after download.
+          for chart in charts/*/; do
+            [ -f "${chart}Chart.yaml" ] || continue
+            helm dependency build "$chart"
+            if [ -d "${chart}charts" ]; then
+              (
+                cd "${chart}charts"
+                shopt -s nullglob
+                for f in *.tgz; do
+                  tar -xzf "$f" && rm -f "$f"
+                done
+              )
+            fi
+          done
+
       - name: Run chart-releaser
         uses: helm/chart-releaser-action@v1.6.0
         env:
