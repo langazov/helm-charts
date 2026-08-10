@@ -66,6 +66,11 @@ terminationGracePeriodSeconds: 30
 # (e.g. "-X" for full debug output, "-workers 64" to override the pool size).
 extraArgs: []
 
+# Override the container ENTRYPOINT. Default is the image's `radiusd`. Set to
+# ["sleep","3600"] (or similar) when running ct install against a placeholder
+# image — see ci/default-values.yaml.
+commandOverride: []
+
 # Extra environment variables injected into the radiusd container.
 extraEnv: []
 # - name: GOMAXPROCS

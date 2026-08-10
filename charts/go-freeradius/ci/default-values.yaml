@@ -1,0 +1,30 @@
+# CI install override used by `ct install`. The chart's default image
+# (go-freeradius-radiusd:3.2.10) is built from the upstream Dockerfile at
+# freeRADIUS/freeradius-server/go-freeradius/docker/radiusd.Dockerfile and is
+# not published to a public registry, so kind-based ct install would hit
+# ImagePullBackOff. To validate that the chart's manifests install cleanly in
+# a real cluster, swap in a public scratch image that just sleeps, and disable
+# probes (which require the real radiusd binary).
+#
+# `ct install --skip-tests` is set in the workflow because `helm test` sends a
+# real RADIUS Access-Request, which only the actual radiusd image can answer.
+image:
+  repository: busybox
+  tag: "1.36"
+  pullPolicy: IfNotPresent
+
+# Keep the placeholder container alive.
+extraArgs: []
+# Override the radiusd entrypoint.
+commandOverride:
+  - "/bin/sh"
+  - "-c"
+  - "sleep 3600"
+
+# Probes run `ss -lun | grep :1812` which fails without a real radiusd.
+startupProbe:
+  enabled: false
+livenessProbe:
+  enabled: false
+readinessProbe:
+  enabled: false

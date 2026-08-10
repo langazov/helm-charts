@@ -145,6 +145,28 @@ The Deployment carries `checksum/config`, `checksum/users`, `checksum/secret`
 annotations, so any change in the rendered ConfigMap/Secret triggers a rolling
 restart.
 
+## CI install (`ct install`)
+
+The default image (`go-freeradius-radiusd:3.2.10`) is built from the upstream
+Dockerfile at
+[`freeRADIUS/freeradius-server/go-freeradius/docker/radiusd.Dockerfile`](https://github.com/freeRADIUS/freeradius-server/blob/master/go-freeradius/docker/radiusd.Dockerfile)
+and is not published to a public registry. To let `ct install` validate the
+chart's manifests in a kind cluster without that image, `ci/default-values.yaml`
+swaps in `busybox:1.36` as a placeholder (with probes disabled and the entry
+point overridden to `sleep`). `helm test` is skipped in CI because the bundled
+test pod sends a real RADIUS `Access-Request` that only the actual `radiusd`
+image can answer.
+
+To validate the chart end-to-end against the real image, build it locally and
+load it into your cluster before running `helm install`:
+
+```sh
+git clone https://github.com/freeRADIUS/freeradius-server
+cd freeradius-server/go-freeradius
+docker build -t go-freeradius-radiusd:3.2.10 -f docker/radiusd.Dockerfile .
+kind load docker-image go-freeradius-radiusd:3.2.10    # if using kind
+```
+
 ## Uninstall
 
 ```sh

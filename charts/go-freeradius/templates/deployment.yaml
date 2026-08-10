@@ -69,6 +69,10 @@ spec:
         - name: radiusd
           image: {{ include "go-freeradius.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.commandOverride }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- $args := list "-d" .Values.radiusd.dictionaryPath "-c" .Values.radiusd.configPath }}
           {{- range .Values.extraArgs }}
           {{- $args = append $args . }}
