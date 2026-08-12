@@ -1,0 +1,153 @@
+# Default values for mariadb-galera-ha.
+
+replicaCount: 3
+
+image:
+  repository: mariadb
+  tag: "11.4"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+auth:
+  # Leave empty to auto-generate
+  rootPassword: ""
+  database: "mydb"
+  username: "user"
+  # Leave empty to auto-generate
+  password: ""
+  # Leave empty to auto-generate
+  replicationPassword: ""
+  existingSecret: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  fsGroup: 999
+
+securityContext:
+  runAsUser: 999
+  runAsGroup: 999
+  runAsNonRoot: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
+
+service:
+  type: ClusterIP
+  port: 3306
+
+galera:
+  clusterName: galera
+  mariabackup: true
+
+persistence:
+  enabled: true
+  accessMode: ReadWriteOnce
+  size: 8Gi
+  storageClass: ""
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+livenessProbe:
+  enabled: true
+  initialDelaySeconds: 120
+  periodSeconds: 10
+  timeoutSeconds: 5
+  successThreshold: 1
+  failureThreshold: 6
+
+readinessProbe:
+  enabled: true
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  successThreshold: 1
+  failureThreshold: 6
+
+startupProbe:
+  enabled: true
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 30
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+affinity: {}
+
+nodeSelector: {}
+
+tolerations: []
+
+updateStrategy:
+  type: RollingUpdate
+
+podManagementPolicy: OrderedReady
+
+terminationGracePeriodSeconds: 120
+
+recovery:
+  enabled: true
+  schedule: "*/15 * * * *"
+  ttlSecondsAfterFinished: 600
+  image:
+    repository: bitnami/kubectl
+    tag: "1.31"
+    pullPolicy: IfNotPresent
+
+backup:
+  enabled: false
+  schedule: "0 2 * * *"
+  s3:
+    bucket: ""
+    endpoint: ""
+    accessKey: ""
+    secretKey: ""
+    # If set, use this existing secret for S3 credentials instead of accessKey/secretKey
+    existingSecret: ""
+  image:
+    repository: mariadb
+    tag: "11.4"
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+metrics:
+  enabled: false
+  image:
+    repository: prom/mysqld-exporter
+    tag: "v0.15.1"
+    pullPolicy: IfNotPresent
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+extraEnvVars: []
+extraVolumes: []
+extraVolumeMounts: []

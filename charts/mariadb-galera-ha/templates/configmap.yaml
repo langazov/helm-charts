@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "mariadb-galera-ha.fullname" . }}-galera-config
+  labels:
+    {{- include "mariadb-galera-ha.labels" . | nindent 4 }}
+data:
+  galera.cnf: |
+    [mysqld]
+    bind-address=0.0.0.0
+    default_storage_engine=InnoDB
+    binlog_format=ROW
+    innodb_autoinc_lock_mode=2
+    innodb_flush_log_at_trx_commit=0
+    innodb_buffer_pool_size=256M
+    innodb_log_file_size=64M
+    innodb_file_per_table=1
+    datadir=/var/lib/mysql
+
+    [galera]
+    wsrep_on=ON
+    wsrep_provider=/usr/lib/galera/libgalera_smm.so
+    wsrep_cluster_name={{ .Values.galera.clusterName }}
+    wsrep_cluster_address={{ include "mariadb-galera-ha.galeraClusterAddress" . }}
+    wsrep_sst_method=mariabackup
+    wsrep_sst_auth=replication:REPLICATION_PASSWORD_PLACEHOLDER
+    wsrep_slave_threads=4
+    wsrep_log_conflicts=ON
+    wsrep_provider_options="gcache.size=256M; gcs.fc_limit=256"
