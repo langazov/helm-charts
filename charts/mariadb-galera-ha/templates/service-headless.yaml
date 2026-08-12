@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "mariadb-galera-ha.headlessServiceName" . }}
+  labels:
+    {{- include "mariadb-galera-ha.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: mysql
+      protocol: TCP
+    - name: sst
+      port: 4444
+      targetPort: sst
+      protocol: TCP
+    - name: galera
+      port: 4567
+      targetPort: galera
+      protocol: TCP
+    - name: ist
+      port: 4568
+      targetPort: ist
+      protocol: TCP
+  selector:
+    {{- include "mariadb-galera-ha.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: mariadb-galera

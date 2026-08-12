@@ -1,0 +1,60 @@
+{{- if and .Values.recovery.enabled .Values.recovery.schedule }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "mariadb-galera-ha.fullname" . }}-recovery-cron
+  labels:
+    {{- include "mariadb-galera-ha.labels" . | nindent 4 }}
+    app.kubernetes.io/component: galera-recovery
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "10"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  schedule: {{ .Values.recovery.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: {{ .Values.recovery.ttlSecondsAfterFinished }}
+      template:
+        metadata:
+          labels:
+            {{- include "mariadb-galera-ha.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: galera-recovery
+        spec:
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          serviceAccountName: {{ include "mariadb-galera-ha.serviceAccountName" . }}
+          restartPolicy: OnFailure
+          containers:
+            - name: recovery
+              image: "{{ include "mariadb-galera-ha.recoveryImage" . }}"
+              imagePullPolicy: {{ .Values.recovery.image.pullPolicy }}
+              env:
+                - name: POD_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                - name: MARIADB_ROOT_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "mariadb-galera-ha.secretName" . }}
+                      key: mariadb-root-password
+              command:
+                - /bin/bash
+                - /scripts/recover-galera.sh
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+          volumes:
+            - name: scripts
+              configMap:
+                name: {{ include "mariadb-galera-ha.fullname" . }}-scripts
+                defaultMode: 0755
+{{- end }}
